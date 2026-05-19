@@ -1,6 +1,6 @@
 {
-  "name": "Fretboard Trainer",
-  "short_name": "Fretboard",
+  "name": "Axe - Fretboard Trainer",
+  "short_name": "Axe",
   "description": "A local-first fretboard learning tool for notes, scales, chords, and quiz practice.",
   "start_url": "./index.html",
   "scope": "./",

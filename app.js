@@ -1,7 +1,7 @@
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const FLAT_DISPLAY = { "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb" };
 const NOTE_ALIASES = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#" };
-const STORAGE_KEY = "fretboardTrainer:v1";
+const STORAGE_KEY = "axe:v1";
 const FRET_OPTIONS = [12, 15, 17, 20, 22, 24];
 const MARKER_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
 const DOUBLE_MARKERS = new Set([12, 24]);
@@ -17,30 +17,30 @@ const NOTE_COLORS = {
   "G#": "var(--note-gs)",
   A: "var(--note-a)",
   "A#": "var(--note-as)",
-  B: "var(--note-b)"
+  B: "var(--note-b)",
 };
 
 const SCALES = {
-  "Major": [0, 2, 4, 5, 7, 9, 11],
+  Major: [0, 2, 4, 5, 7, 9, 11],
   "Natural Minor": [0, 2, 3, 5, 7, 8, 10],
   "Minor Pentatonic": [0, 3, 5, 7, 10],
   "Major Pentatonic": [0, 2, 4, 7, 9],
-  "Blues": [0, 3, 5, 6, 7, 10],
-  "Dorian": [0, 2, 3, 5, 7, 9, 10],
-  "Mixolydian": [0, 2, 4, 5, 7, 9, 10],
-  "Harmonic Minor": [0, 2, 3, 5, 7, 8, 11]
+  Blues: [0, 3, 5, 6, 7, 10],
+  Dorian: [0, 2, 3, 5, 7, 9, 10],
+  Mixolydian: [0, 2, 4, 5, 7, 9, 10],
+  "Harmonic Minor": [0, 2, 3, 5, 7, 8, 11],
 };
 
 const CHORDS = {
-  "Major": [0, 4, 7],
-  "Minor": [0, 3, 7],
+  Major: [0, 4, 7],
+  Minor: [0, 3, 7],
   "Dominant 7": [0, 4, 7, 10],
   "Major 7": [0, 4, 7, 11],
   "Minor 7": [0, 3, 7, 10],
-  "Diminished": [0, 3, 6],
-  "Sus2": [0, 2, 7],
-  "Sus4": [0, 5, 7],
-  "Power Chord": [0, 7]
+  Diminished: [0, 3, 6],
+  Sus2: [0, 2, 7],
+  Sus4: [0, 5, 7],
+  "Power Chord": [0, 7],
 };
 
 const PRESET_TUNINGS = [
@@ -55,7 +55,7 @@ const PRESET_TUNINGS = [
   { id: "bass-drop-d", instrument: "Bass", name: "Drop D bass", strings: ["D", "A", "D", "G"], defaultFrets: 20 },
   { id: "ukulele-standard", instrument: "Ukulele", name: "Standard re-entrant", strings: ["G", "C", "E", "A"], defaultFrets: 15 },
   { id: "ukulele-low-g", instrument: "Ukulele", name: "Low G", strings: ["G", "C", "E", "A"], defaultFrets: 15 },
-  { id: "ukulele-baritone", instrument: "Ukulele", name: "Baritone", strings: ["D", "G", "B", "E"], defaultFrets: 15 }
+  { id: "ukulele-baritone", instrument: "Ukulele", name: "Baritone", strings: ["D", "G", "B", "E"], defaultFrets: 15 },
 ].map((tuning) => ({ ...tuning, strings: tuning.strings.map((note) => normalizeNote(note)) }));
 
 function normalizeNote(value) {
@@ -87,8 +87,8 @@ function generateFretboardMatrix(strings, frets) {
     frets: Array.from({ length: frets + 1 }, (_, fret) => ({
       stringIndex,
       fret,
-      note: noteAt(openNote, fret)
-    }))
+      note: noteAt(openNote, fret),
+    })),
   }));
 }
 
@@ -121,12 +121,7 @@ function labelForTuning(tuning) {
 }
 
 function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+  return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
 function groupedTunings(customTunings) {
@@ -151,8 +146,8 @@ const defaultState = {
     completed: false,
     guesses: { correct: 0, incorrect: 0 },
     scoreText: "",
-    stats: { gamesStarted: 0, gamesCompleted: 0, correctGuesses: 0, incorrectGuesses: 0 }
-  }
+    stats: { gamesStarted: 0, gamesCompleted: 0, correctGuesses: 0, incorrectGuesses: 0 },
+  },
 };
 
 class Store extends EventTarget {
@@ -163,12 +158,14 @@ class Store extends EventTarget {
   }
 
   sanitize(state) {
-    const customTunings = Array.isArray(state.customTunings) ? state.customTunings.map((tuning) => ({
-      id: tuning.id || uid(),
-      instrument: tuning.instrument || "Custom",
-      name: tuning.name || "Untitled",
-      strings: Array.isArray(tuning.strings) && tuning.strings.length ? tuning.strings.map(normalizeNote) : ["E", "A", "D", "G", "B", "E"]
-    })) : [];
+    const customTunings = Array.isArray(state.customTunings)
+      ? state.customTunings.map((tuning) => ({
+          id: tuning.id || uid(),
+          instrument: tuning.instrument || "Custom",
+          name: tuning.name || "Untitled",
+          strings: Array.isArray(tuning.strings) && tuning.strings.length ? tuning.strings.map(normalizeNote) : ["E", "A", "D", "G", "B", "E"],
+        }))
+      : [];
     const tuning = groupedTunings(customTunings).find((item) => item.id === state.selectedTuningId) || PRESET_TUNINGS[0];
     return {
       ...defaultState,
@@ -189,8 +186,8 @@ class Store extends EventTarget {
         selected: Array.isArray(state.quiz?.selected) ? state.quiz.selected : [],
         completed: Boolean(state.quiz?.completed),
         guesses: { ...defaultState.quiz.guesses, ...(state.quiz?.guesses || {}) },
-        stats: { ...defaultState.quiz.stats, ...(state.quiz?.stats || {}) }
-      }
+        stats: { ...defaultState.quiz.stats, ...(state.quiz?.stats || {}) },
+      },
     };
   }
 
@@ -243,19 +240,19 @@ class FretboardApp extends BaseElement {
         id: uid(),
         instrument: "Custom",
         name: event.detail.name || "Custom tuning",
-        strings: event.detail.strings.map(normalizeNote)
+        strings: event.detail.strings.map(normalizeNote),
       };
       store.update((state) => ({
         ...state,
         customTunings: [...state.customTunings, tuning],
-        selectedTuningId: tuning.id
+        selectedTuningId: tuning.id,
       }));
     });
     this.addEventListener("tuning-delete", (event) => {
       store.update((state) => ({
         ...state,
         customTunings: state.customTunings.filter((tuning) => tuning.id !== event.detail.id),
-        selectedTuningId: state.selectedTuningId === event.detail.id ? "guitar-standard" : state.selectedTuningId
+        selectedTuningId: state.selectedTuningId === event.detail.id ? "guitar-standard" : state.selectedTuningId,
       }));
     });
     this.addEventListener("quiz-action", (event) => handleQuizAction(event.detail.action, event.detail.position));
@@ -282,7 +279,9 @@ class FretboardApp extends BaseElement {
             <fretboard-view></fretboard-view>
           </section>
         </main>
-        ${this.settingsOpen ? `
+        ${
+          this.settingsOpen
+            ? `
           <div class="modal-backdrop" data-action="close-settings">
             <section class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
               <div class="modal-header">
@@ -296,7 +295,9 @@ class FretboardApp extends BaseElement {
               <tuning-panel></tuning-panel>
             </section>
           </div>
-        ` : ""}
+        `
+            : ""
+        }
       </div>
     `;
     this.querySelector("[data-action='settings']").addEventListener("click", () => {
@@ -311,8 +312,12 @@ class FretboardApp extends BaseElement {
         this.render();
       });
     });
-    this.querySelector("[data-action='theme']")?.addEventListener("click", () => this.emit("app-update", { theme: theme === "dark" ? "light" : "dark" }));
-    this.querySelector("[data-action='accidental']")?.addEventListener("click", () => this.emit("app-update", { accidental: accidental === "flats" ? "sharps" : "flats" }));
+    this.querySelector("[data-action='theme']")?.addEventListener("click", () =>
+      this.emit("app-update", { theme: theme === "dark" ? "light" : "dark" }),
+    );
+    this.querySelector("[data-action='accidental']")?.addEventListener("click", () =>
+      this.emit("app-update", { accidental: accidental === "flats" ? "sharps" : "flats" }),
+    );
   }
 }
 
@@ -345,14 +350,18 @@ class TuningPanel extends BaseElement {
           </label>
         </div>
         <div class="strings-editor">
-          ${tuning.strings.map((note, index) => `
+          ${tuning.strings
+            .map(
+              (note, index) => `
             <div class="string-row">
               <span>String ${index + 1}</span>
               <label class="sr-only" for="string-${index}">String ${index + 1} note</label>
               <input id="string-${index}" data-string-index="${index}" type="text" value="${escapeHtml(displayNote(note, state.accidental))}" maxlength="2">
               <button type="button" class="danger" data-remove-string="${index}" aria-label="Remove string ${index + 1}">Remove</button>
             </div>
-          `).join("")}
+          `,
+            )
+            .join("")}
         </div>
         <div class="button-row" style="margin-top: .75rem;">
           <button type="button" data-action="add-string">Add string</button>
@@ -368,7 +377,9 @@ class TuningPanel extends BaseElement {
     this.querySelector("[name='fretsPreset']").addEventListener("change", (event) => {
       if (event.target.value !== "custom") this.emit("app-update", { frets: clampFrets(event.target.value) });
     });
-    this.querySelector("[name='customFrets']").addEventListener("change", (event) => this.emit("app-update", { frets: clampFrets(event.target.value) }));
+    this.querySelector("[name='customFrets']").addEventListener("change", (event) =>
+      this.emit("app-update", { frets: clampFrets(event.target.value) }),
+    );
     this.querySelectorAll("[data-string-index]").forEach((input) => {
       input.addEventListener("change", (event) => {
         const strings = [...tuning.strings];
@@ -394,7 +405,7 @@ class TuningPanel extends BaseElement {
     if (store.state.customTunings.some((item) => item.id === tuning.id)) {
       store.update((state) => ({
         ...state,
-        customTunings: state.customTunings.map((item) => item.id === tuning.id ? { ...item, strings } : item)
+        customTunings: state.customTunings.map((item) => (item.id === tuning.id ? { ...item, strings } : item)),
       }));
     } else {
       const custom = { id: uid(), instrument: "Custom", name: `${tuning.name} edit`, strings };
@@ -410,7 +421,7 @@ class ModeSelector extends BaseElement {
       ["notes", "Notes"],
       ["scales", "Scales"],
       ["chords", "Chords"],
-      ["quiz", "Quiz"]
+      ["quiz", "Quiz"],
     ];
     this.innerHTML = `
       <div class="segmented" role="group" aria-label="Display mode">
@@ -464,7 +475,9 @@ class ScalePanel extends BaseElement {
             <select name="root">${NOTES.map((note) => `<option value="${note}" ${note === state.rootNote ? "selected" : ""}>${escapeHtml(displayNote(note, state.accidental))}</option>`).join("")}</select>
           </label>
           <label>Type
-            <select name="scale">${Object.keys(SCALES).map((name) => `<option value="${escapeHtml(name)}" ${name === state.selectedScale ? "selected" : ""}>${escapeHtml(name)}</option>`).join("")}</select>
+            <select name="scale">${Object.keys(SCALES)
+              .map((name) => `<option value="${escapeHtml(name)}" ${name === state.selectedScale ? "selected" : ""}>${escapeHtml(name)}</option>`)
+              .join("")}</select>
           </label>
         </div>
       </section>
@@ -489,7 +502,9 @@ class ChordPanel extends BaseElement {
             <select name="root">${NOTES.map((note) => `<option value="${note}" ${note === state.rootNote ? "selected" : ""}>${escapeHtml(displayNote(note, state.accidental))}</option>`).join("")}</select>
           </label>
           <label>Type
-            <select name="chord">${Object.keys(CHORDS).map((name) => `<option value="${escapeHtml(name)}" ${name === state.selectedChord ? "selected" : ""}>${escapeHtml(name)}</option>`).join("")}</select>
+            <select name="chord">${Object.keys(CHORDS)
+              .map((name) => `<option value="${escapeHtml(name)}" ${name === state.selectedChord ? "selected" : ""}>${escapeHtml(name)}</option>`)
+              .join("")}</select>
           </label>
         </div>
       </section>
@@ -548,12 +563,19 @@ class FretboardView extends BaseElement {
           <div class="fretboard" style="--fret-count: ${state.frets}; --fret-columns: ${state.frets}; --string-count: ${tuning.strings.length};">
             <span></span>
             ${frets.map((fret) => `<div class="fret-number">${fret}</div>`).join("")}
-            ${rows.map((row) => `
+            ${rows
+              .map(
+                (row) => `
               <div class="string-name">${escapeHtml(displayNote(row.openNote, state.accidental))}</div>
-              ${row.frets.slice(1).map((pos) => this.renderPosition(pos, visible, state)).join("")}
-            `).join("")}
+              ${row.frets
+                .slice(1)
+                .map((pos) => this.renderPosition(pos, visible, state))
+                .join("")}
+            `,
+              )
+              .join("")}
             <span></span>
-            ${frets.map((fret) => `<div class="marker-cell ${MARKER_FRETS.has(fret) ? DOUBLE_MARKERS.has(fret) ? "double" : "single" : ""}" aria-hidden="true"></div>`).join("")}
+            ${frets.map((fret) => `<div class="marker-cell ${MARKER_FRETS.has(fret) ? (DOUBLE_MARKERS.has(fret) ? "double" : "single") : ""}" aria-hidden="true"></div>`).join("")}
           </div>
         </div>
       </div>
@@ -571,18 +593,17 @@ class FretboardView extends BaseElement {
     const selected = quiz?.selected.includes(key);
     const correctAnswer = quiz && pos.note === quiz.questionNote;
     const completed = quiz?.completed;
-    const classes = [
-      !isVisible ? "empty" : "",
-      pos.fret === 0 ? "open" : ""
-    ].filter(Boolean).join(" ");
+    const classes = [!isVisible ? "empty" : "", pos.fret === 0 ? "open" : ""].filter(Boolean).join(" ");
     const buttonClasses = [
       state.mode === "quiz" && !selected ? "hidden-note" : "",
       isRoot ? "root" : "",
       selected ? "selected" : "",
       selected && correctAnswer ? "correct" : "",
       selected && !correctAnswer ? "incorrect" : "",
-      completed && !selected && correctAnswer ? "missed" : ""
-    ].filter(Boolean).join(" ");
+      completed && !selected && correctAnswer ? "missed" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     const label = state.mode === "quiz" && !selected ? "" : displayNote(pos.note, state.accidental);
     return `
       <div class="position ${classes}" style="--note-color: ${NOTE_COLORS[pos.note]}">
@@ -621,8 +642,8 @@ function handleQuizAction(action, position) {
         completed: false,
         guesses: { correct: 0, incorrect: 0 },
         scoreText: "",
-        stats: { ...state.quiz.stats, gamesStarted: state.quiz.stats.gamesStarted + 1 }
-      }
+        stats: { ...state.quiz.stats, gamesStarted: state.quiz.stats.gamesStarted + 1 },
+      },
     });
     return;
   }
@@ -642,8 +663,8 @@ function handleQuizAction(action, position) {
       selected: [...selected],
       guesses: {
         correct: state.quiz.guesses.correct + (isCorrect ? 1 : 0),
-        incorrect: state.quiz.guesses.incorrect + (isCorrect ? 0 : 1)
-      }
+        incorrect: state.quiz.guesses.incorrect + (isCorrect ? 0 : 1),
+      },
     };
     const foundAll = [...answerKeys].every((key) => selected.has(key));
     if (foundAll) {
@@ -656,8 +677,8 @@ function handleQuizAction(action, position) {
           ...state.quiz.stats,
           gamesCompleted: state.quiz.stats.gamesCompleted + 1,
           correctGuesses: state.quiz.stats.correctGuesses + nextQuiz.guesses.correct,
-          incorrectGuesses: state.quiz.stats.incorrectGuesses + nextQuiz.guesses.incorrect
-        }
+          incorrectGuesses: state.quiz.stats.incorrectGuesses + nextQuiz.guesses.incorrect,
+        },
       };
       store.update({ quiz: completedQuiz });
       return;
@@ -680,9 +701,9 @@ function finishQuiz(state, reason) {
         ...state.quiz.stats,
         gamesCompleted: state.quiz.stats.gamesCompleted + 1,
         correctGuesses: state.quiz.stats.correctGuesses + state.quiz.guesses.correct,
-        incorrectGuesses: state.quiz.stats.incorrectGuesses + state.quiz.guesses.incorrect
-      }
-    }
+        incorrectGuesses: state.quiz.stats.incorrectGuesses + state.quiz.guesses.incorrect,
+      },
+    },
   });
 }
 
@@ -693,9 +714,11 @@ function scoreTextForQuiz(quiz, total, prefix) {
 function getAnswerKeys(state) {
   const matrix = generateFretboardMatrix(store.tuning.strings, state.frets);
   const keys = new Set();
-  matrix.forEach((row) => row.frets.forEach((pos) => {
-    if (pos.fret > 0 && pos.note === state.quiz.questionNote) keys.add(`${pos.stringIndex}:${pos.fret}`);
-  }));
+  matrix.forEach((row) =>
+    row.frets.forEach((pos) => {
+      if (pos.fret > 0 && pos.note === state.quiz.questionNote) keys.add(`${pos.stringIndex}:${pos.fret}`);
+    }),
+  );
   return keys;
 }
 
