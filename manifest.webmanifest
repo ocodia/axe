@@ -1,0 +1,25 @@
+{
+  "name": "Fretboard Trainer",
+  "short_name": "Fretboard",
+  "description": "A local-first fretboard learning tool for notes, scales, chords, and quiz practice.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#181b22",
+  "theme_color": "#181b22",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%23181b22'/%3E%3Cpath d='M30 58h132M30 82h132M30 110h132M30 134h132' stroke='%23f5f7fb' stroke-width='8' stroke-linecap='round'/%3E%3Cpath d='M54 42v108M90 42v108M126 42v108' stroke='%2395d5b2' stroke-width='7' stroke-linecap='round'/%3E%3Ccircle cx='90' cy='82' r='16' fill='%23ffb703'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%23181b22'/%3E%3Cpath d='M80 154h352M80 220h352M80 292h352M80 358h352' stroke='%23f5f7fb' stroke-width='22' stroke-linecap='round'/%3E%3Cpath d='M144 112v288M240 112v288M336 112v288' stroke='%2395d5b2' stroke-width='18' stroke-linecap='round'/%3E%3Ccircle cx='240' cy='220' r='44' fill='%23ffb703'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
