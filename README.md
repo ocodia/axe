@@ -17,6 +17,7 @@ The app is local-first and runs entirely in the browser using plain HTML, modern
 - Scale highlighting with root emphasis
 - Chord-tone highlighting with root emphasis
 - Interactive circle of fifths with key signatures, relative minors, diatonic chords, and related-key context
+- Chord progression helper with Roman numerals, chord functions, mood filters, and practice-scale suggestions
 - Simple quiz mode with immediate note reveal and scoring
 - Offline support through a service worker
 - Installable PWA manifest

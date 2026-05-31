@@ -232,9 +232,9 @@ label {
 
 .segmented {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.35rem;
-  width: min(680px, 100%);
+  width: min(780px, 100%);
 }
 
 .segmented button {
@@ -246,6 +246,7 @@ note-filter,
 scale-panel,
 chord-panel,
 circle-of-fifths-panel,
+chord-helper-panel,
 quiz-panel,
 tuning-panel,
 fretboard-view {
@@ -659,6 +660,114 @@ fretboard-view {
   color: var(--muted);
 }
 
+.chord-helper-panel {
+  grid-column: 1 / -1;
+}
+
+.helper-controls {
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+}
+
+.function-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.function-strip span {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 0.5rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.progression-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+}
+
+.progression-card {
+  display: grid;
+  gap: 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.7rem;
+}
+
+.progression-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.progression-head strong {
+  font-size: 0.96rem;
+}
+
+.progression-head span {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 0.18rem 0.42rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.progression-chords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.progression-chords span {
+  min-width: 3.2rem;
+  border: 1px solid color-mix(in srgb, var(--accent), var(--border) 55%);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent), var(--surface) 86%);
+  padding: 0.35rem 0.48rem;
+  text-align: center;
+  color: var(--text);
+  font-weight: 850;
+}
+
+.progression-card p {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.progression-meta {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.progression-meta div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.progression-meta dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.progression-meta dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.84rem;
+}
+
 .score {
   font-weight: 800;
   color: var(--text);
@@ -768,7 +877,9 @@ fretboard-view {
   }
 
   .circle-layout,
-  .summary-grid {
+  .summary-grid,
+  .helper-controls,
+  .function-strip {
     grid-template-columns: 1fr;
   }
 
