@@ -109,6 +109,8 @@ const CHORDS = {
   "Major 7": [0, 4, 7, 11],
   "Minor 7": [0, 3, 7, 10],
   Diminished: [0, 3, 6],
+  "Diminished 7": [0, 3, 6, 9],
+  "Half-Diminished": [0, 3, 6, 10],
   Sus2: [0, 2, 7],
   Sus4: [0, 5, 7],
   "Power Chord": [0, 7],
@@ -314,6 +316,29 @@ function chordNameForRoman(token, scale, tonality) {
   return root;
 }
 
+function chordTypeForRoman(token, tonality) {
+  const { degree, extension } = splitRomanToken(token);
+  if (extension === "maj7") return "Major 7";
+  if (extension === "dim7") return "Diminished 7";
+  if (degree.includes("\u00f8")) return "Half-Diminished";
+  if (extension === "7" && degree.includes("\u00b0")) return "Diminished 7";
+  if (extension === "7" && degree === degree.toLowerCase()) return "Minor 7";
+  if (extension === "7") return "Dominant 7";
+  if (degree.includes("\u00b0")) return "Diminished";
+  if (degree === degree.toLowerCase()) return "Minor";
+  if (tonality === "minor" && degree === "V") return "Major";
+  return "Major";
+}
+
+function chordInfoForRoman(token, scale, tonality) {
+  const rootLabel = chordRootForDegree(scale, splitRomanToken(token).degree);
+  return {
+    label: chordNameForRoman(token, scale, tonality),
+    root: normalizeNote(rootLabel),
+    type: chordTypeForRoman(token, tonality),
+  };
+}
+
 function getChordFunction(token) {
   const { degree, extension } = splitRomanToken(token);
   return CHORD_FUNCTION_BY_ROMAN[`${degree}${extension}`] || CHORD_FUNCTION_BY_ROMAN[degree] || "tonic";
@@ -360,6 +385,7 @@ const defaultState = {
     tonality: "major",
     style: "Pop",
     complexity: "Simple",
+    focusChord: null,
   },
   quiz: {
     active: false,
@@ -410,6 +436,14 @@ class Store extends EventTarget {
         tonality: normalizeTonality(state.chordHelper?.tonality),
         style: normalizeHelperStyle(state.chordHelper?.style),
         complexity: normalizeHelperComplexity(state.chordHelper?.complexity),
+        focusChord:
+          state.chordHelper?.focusChord && CHORDS[state.chordHelper.focusChord.type]
+            ? {
+                label: state.chordHelper.focusChord.label || `${displayNote(state.chordHelper.focusChord.root)} ${state.chordHelper.focusChord.type}`,
+                root: normalizeNote(state.chordHelper.focusChord.root),
+                type: state.chordHelper.focusChord.type,
+              }
+            : null,
       },
       quiz: {
         ...defaultState.quiz,
@@ -910,14 +944,23 @@ class ChordHelperPanel extends BaseElement {
   }
 
   renderSuggestion(suggestion, key, scale, tonality) {
-    const chords = suggestion.numerals.map((token) => chordNameForRoman(token, scale, tonality));
+    const focused = store.state.chordHelper.focusChord;
+    const chords = suggestion.numerals.map((token) => chordInfoForRoman(token, scale, tonality));
     return `
       <article class="progression-card">
         <div class="progression-head">
           <strong>${suggestion.numerals.map(escapeHtml).join(" - ")}</strong>
           <span>${escapeHtml(suggestion.complexity)}</span>
         </div>
-        <div class="progression-chords">${chords.map((chord) => `<span>${escapeHtml(chord)}</span>`).join("")}</div>
+        <div class="progression-chords">${chords
+          .map(
+            (chord) => `
+          <button type="button" data-helper-chord-root="${escapeHtml(chord.root)}" data-helper-chord-type="${escapeHtml(chord.type)}" data-helper-chord-label="${escapeHtml(chord.label)}" aria-pressed="${focused?.root === chord.root && focused?.type === chord.type}">
+            ${escapeHtml(chord.label)}
+          </button>
+        `,
+          )
+          .join("")}</div>
         <p>${escapeHtml(suggestion.description)}</p>
         <dl class="progression-meta">
           <div>
@@ -941,9 +984,27 @@ class ChordHelperPanel extends BaseElement {
     const nextHelper = { ...store.state.chordHelper, ...patch };
     const key = getCircleKeyData(nextHelper.key);
     this.emit("app-update", {
-      chordHelper: nextHelper,
+      chordHelper: { ...nextHelper, focusChord: null },
       rootNote: normalizeNote(key.major),
       selectedScale: nextHelper.tonality === "minor" ? "Natural Minor" : "Major",
+    });
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-helper-chord-root]");
+      if (!button) return;
+      const focusChord = {
+        label: button.dataset.helperChordLabel,
+        root: button.dataset.helperChordRoot,
+        type: button.dataset.helperChordType,
+      };
+      this.emit("app-update", {
+        chordHelper: { ...store.state.chordHelper, focusChord },
+        rootNote: focusChord.root,
+        selectedChord: focusChord.type,
+      });
     });
   }
 }
@@ -1031,7 +1092,8 @@ class FretboardView extends BaseElement {
     const key = `${pos.stringIndex}:${pos.fret}`;
     const quiz = state.mode === "quiz" ? state.quiz : null;
     const isVisible = state.mode === "all" || visible.has(pos.note) || state.mode === "quiz";
-    const isRoot = (state.mode === "scales" || state.mode === "chords") && pos.note === state.rootNote;
+    const helperRoot = state.mode === "helper" ? state.chordHelper.focusChord?.root : null;
+    const isRoot = ((state.mode === "scales" || state.mode === "chords") && pos.note === state.rootNote) || (helperRoot && pos.note === helperRoot);
     const selected = quiz?.selected.includes(key);
     const correctAnswer = quiz && pos.note === quiz.questionNote;
     const completed = quiz?.completed;
@@ -1059,6 +1121,10 @@ function getVisibleNotes(state) {
   if (state.mode === "notes") return new Set(state.selectedNotes);
   if (state.mode === "scales") return new Set(notesFromPattern(state.rootNote, SCALES[state.selectedScale]));
   if (state.mode === "chords") return new Set(notesFromPattern(state.rootNote, CHORDS[state.selectedChord]));
+  if (state.mode === "helper" && state.chordHelper.focusChord) {
+    const { root, type } = state.chordHelper.focusChord;
+    return new Set(notesFromPattern(root, CHORDS[type] || CHORDS.Major));
+  }
   return new Set(NOTES);
 }
 
@@ -1067,7 +1133,10 @@ function getModeLabel(state) {
   if (state.mode === "scales") return `${displayNote(state.rootNote, state.accidental)} ${state.selectedScale}`;
   if (state.mode === "chords") return `${displayNote(state.rootNote, state.accidental)} ${state.selectedChord}`;
   if (state.mode === "circle") return `${getCircleKeyData(state.circleKey).major} major context`;
-  if (state.mode === "helper") return `${state.chordHelper.key} ${state.chordHelper.tonality} progressions`;
+  if (state.mode === "helper") {
+    const focus = state.chordHelper.focusChord;
+    return focus ? `Showing ${focus.label}` : `${state.chordHelper.key} ${state.chordHelper.tonality} progressions`;
+  }
   if (state.mode === "quiz") return state.quiz.active ? `Find ${displayNote(state.quiz.questionNote, state.accidental)}` : "Quiz stopped";
   return "All notes";
 }

@@ -728,8 +728,9 @@ fretboard-view {
   gap: 0.4rem;
 }
 
-.progression-chords span {
+.progression-chords button {
   min-width: 3.2rem;
+  min-height: 2.25rem;
   border: 1px solid color-mix(in srgb, var(--accent), var(--border) 55%);
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--accent), var(--surface) 86%);
@@ -737,6 +738,12 @@ fretboard-view {
   text-align: center;
   color: var(--text);
   font-weight: 850;
+}
+
+.progression-chords button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
 }
 
 .progression-card p {
