@@ -1,4 +1,4 @@
-const CACHE_NAME = "axe-v1";
+const CACHE_NAME = "axe-v2";
 const APP_SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

@@ -232,7 +232,7 @@ label {
 
 .segmented {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.35rem;
   width: min(680px, 100%);
 }
@@ -245,6 +245,7 @@ label {
 note-filter,
 scale-panel,
 chord-panel,
+circle-of-fifths-panel,
 quiz-panel,
 tuning-panel,
 fretboard-view {
@@ -463,6 +464,201 @@ fretboard-view {
   color: var(--muted);
 }
 
+.helper-list,
+.toggle-row {
+  margin-top: 0.75rem;
+}
+
+.helper-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.helper-list strong {
+  font-size: 0.85rem;
+}
+
+.info-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 0.25rem 0.5rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 750;
+}
+
+.toggle-row {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  color: var(--text);
+}
+
+.toggle-row input {
+  width: 1.1rem;
+  min-height: 1.1rem;
+  margin: 0;
+}
+
+.circle-panel {
+  grid-column: 1 / -1;
+}
+
+.circle-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) minmax(280px, 1fr);
+  align-items: center;
+  gap: clamp(0.85rem, 2vw, 1.3rem);
+}
+
+.circle-diagram {
+  width: min(100%, 420px);
+  aspect-ratio: 1;
+  display: block;
+  margin-inline: auto;
+}
+
+.circle-ring,
+.circle-inner-ring {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 2;
+}
+
+.circle-inner-ring {
+  stroke-dasharray: 5 6;
+}
+
+.circle-key {
+  cursor: pointer;
+  color: var(--text);
+}
+
+.circle-key circle {
+  fill: var(--surface);
+  stroke: var(--border);
+  stroke-width: 2;
+  transition:
+    fill 160ms ease,
+    stroke 160ms ease,
+    transform 160ms ease;
+}
+
+.circle-key .minor-node {
+  fill: var(--surface-2);
+}
+
+.circle-key text {
+  fill: currentColor;
+  font-size: 1rem;
+  font-weight: 850;
+  pointer-events: none;
+}
+
+.circle-key .minor-label {
+  fill: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.circle-key:hover circle,
+.circle-key:focus-visible circle {
+  stroke: var(--accent);
+}
+
+.circle-key.selected {
+  color: var(--accent-text);
+}
+
+.circle-key.selected circle {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+.circle-key.selected .minor-node {
+  fill: color-mix(in srgb, var(--accent), var(--surface) 18%);
+}
+
+.circle-key.selected .minor-label {
+  fill: var(--accent-text);
+}
+
+.circle-center-title,
+.circle-center-key {
+  fill: var(--muted);
+  font-weight: 800;
+}
+
+.circle-center-title {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.circle-center-key {
+  fill: var(--text);
+  font-size: 2rem;
+}
+
+.key-summary {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.summary-block {
+  display: grid;
+  gap: 0.28rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 0.65rem;
+}
+
+.summary-block.wide {
+  grid-column: 1 / -1;
+}
+
+.summary-block span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.summary-block strong {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.chord-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: 0.35rem;
+}
+
+.chord-grid span {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.38rem 0.48rem;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.chord-grid b {
+  color: var(--muted);
+}
+
 .score {
   font-weight: 800;
   color: var(--text);
@@ -563,8 +759,21 @@ fretboard-view {
     grid-template-columns: 1fr;
   }
 
+  .segmented {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .note-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .circle-layout,
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .circle-key .minor-label {
+    font-size: 0.58rem;
   }
 
   .fretboard {

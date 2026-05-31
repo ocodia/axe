@@ -1,6 +1,6 @@
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const FLAT_DISPLAY = { "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb" };
-const NOTE_ALIASES = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#" };
+const NOTE_ALIASES = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#", "E#": "F", "B#": "C", Cb: "B", Fb: "E" };
 const STORAGE_KEY = "axe:v1";
 const FRET_OPTIONS = [12, 15, 17, 20, 22, 24];
 const MARKER_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
@@ -30,6 +30,30 @@ const SCALES = {
   Mixolydian: [0, 2, 4, 5, 7, 9, 10],
   "Harmonic Minor": [0, 2, 3, 5, 7, 8, 11],
 };
+
+const CIRCLE_KEYS = [
+  { major: "C", minor: "Am", accidentals: 0, type: "natural", scale: ["C", "D", "E", "F", "G", "A", "B"] },
+  { major: "G", minor: "Em", accidentals: 1, type: "sharps", scale: ["G", "A", "B", "C", "D", "E", "F#"] },
+  { major: "D", minor: "Bm", accidentals: 2, type: "sharps", scale: ["D", "E", "F#", "G", "A", "B", "C#"] },
+  { major: "A", minor: "F#m", accidentals: 3, type: "sharps", scale: ["A", "B", "C#", "D", "E", "F#", "G#"] },
+  { major: "E", minor: "C#m", accidentals: 4, type: "sharps", scale: ["E", "F#", "G#", "A", "B", "C#", "D#"] },
+  { major: "B", minor: "G#m", accidentals: 5, type: "sharps", scale: ["B", "C#", "D#", "E", "F#", "G#", "A#"] },
+  { major: "F#", minor: "D#m/Ebm", accidentals: 6, type: "sharps", scale: ["F#", "G#", "A#", "B", "C#", "D#", "E#"] },
+  { major: "Db", minor: "Bbm", accidentals: 5, type: "flats", scale: ["Db", "Eb", "F", "Gb", "Ab", "Bb", "C"] },
+  { major: "Ab", minor: "Fm", accidentals: 4, type: "flats", scale: ["Ab", "Bb", "C", "Db", "Eb", "F", "G"] },
+  { major: "Eb", minor: "Cm", accidentals: 3, type: "flats", scale: ["Eb", "F", "G", "Ab", "Bb", "C", "D"] },
+  { major: "Bb", minor: "Gm", accidentals: 2, type: "flats", scale: ["Bb", "C", "D", "Eb", "F", "G", "A"] },
+  { major: "F", minor: "Dm", accidentals: 1, type: "flats", scale: ["F", "G", "A", "Bb", "C", "D", "E"] },
+];
+const CIRCLE_MAJOR_KEYS = CIRCLE_KEYS.map((key) => key.major);
+const ROMAN_DEGREES = ["I", "ii", "iii", "IV", "V", "vi", "vii\u00b0"];
+const DIATONIC_SUFFIXES = ["", "m", "m", "", "", "m", "dim"];
+const BORROWED_INTERVALS = [
+  ["iv", 5, "m"],
+  ["bIII", 3, ""],
+  ["bVI", 8, ""],
+  ["bVII", 10, ""],
+];
 
 const CHORDS = {
   Major: [0, 4, 7],
@@ -128,6 +152,44 @@ function groupedTunings(customTunings) {
   return [...PRESET_TUNINGS, ...customTunings];
 }
 
+function normalizeCircleKey(value, accidental = "sharps") {
+  if (CIRCLE_MAJOR_KEYS.includes(value)) return value;
+  const root = normalizeNote(value);
+  const matches = CIRCLE_KEYS.filter((key) => normalizeNote(key.major) === root);
+  if (!matches.length) return "C";
+  return (matches.find((key) => key.type === accidental) || matches[0]).major;
+}
+
+function getCircleKeyData(keyName) {
+  return CIRCLE_KEYS.find((key) => key.major === normalizeCircleKey(keyName)) || CIRCLE_KEYS[0];
+}
+
+function accidentalLabel(key) {
+  if (!key.accidentals) return "No sharps or flats";
+  return `${key.accidentals} ${key.type === "flats" ? "flat" : "sharp"}${key.accidentals === 1 ? "" : "s"}`;
+}
+
+function getDiatonicChords(key) {
+  return key.scale.map((note, index) => ({
+    degree: ROMAN_DEGREES[index],
+    chord: `${note}${DIATONIC_SUFFIXES[index]}`,
+  }));
+}
+
+function getCloselyRelatedKeys(keyName) {
+  const index = CIRCLE_MAJOR_KEYS.indexOf(normalizeCircleKey(keyName));
+  const key = CIRCLE_KEYS[index] || CIRCLE_KEYS[0];
+  const previous = CIRCLE_KEYS[(index + CIRCLE_KEYS.length - 1) % CIRCLE_KEYS.length].major;
+  const next = CIRCLE_KEYS[(index + 1) % CIRCLE_KEYS.length].major;
+  return [previous, next, key.minor].join(", ");
+}
+
+function getBorrowedOptions(key) {
+  const root = normalizeNote(key.major);
+  const accidental = key.type === "sharps" ? "sharps" : "flats";
+  return BORROWED_INTERVALS.map(([degree, interval, quality]) => `${degree}: ${displayNote(transpose(root, interval), accidental)}${quality}`).join(", ");
+}
+
 const defaultState = {
   selectedTuningId: "guitar-standard",
   customTunings: [],
@@ -136,6 +198,7 @@ const defaultState = {
   accidental: "sharps",
   mode: "all",
   rootNote: "C",
+  circleKey: "C",
   selectedScale: "Major",
   selectedChord: "Major",
   selectedNotes: ["C"],
@@ -146,6 +209,7 @@ const defaultState = {
     completed: false,
     guesses: { correct: 0, incorrect: 0 },
     scoreText: "",
+    keyAware: false,
     stats: { gamesStarted: 0, gamesCompleted: 0, correctGuesses: 0, incorrectGuesses: 0 },
   },
 };
@@ -176,6 +240,7 @@ class Store extends EventTarget {
       accidental: state.accidental === "flats" ? "flats" : "sharps",
       theme: state.theme === "dark" ? "dark" : "light",
       rootNote: normalizeNote(state.rootNote),
+      circleKey: normalizeCircleKey(state.circleKey || state.rootNote, state.accidental),
       selectedNotes: Array.isArray(state.selectedNotes) && state.selectedNotes.length ? [...new Set(state.selectedNotes.map(normalizeNote))] : ["C"],
       selectedScale: SCALES[state.selectedScale] ? state.selectedScale : "Major",
       selectedChord: CHORDS[state.selectedChord] ? state.selectedChord : "Major",
@@ -186,6 +251,7 @@ class Store extends EventTarget {
         selected: Array.isArray(state.quiz?.selected) ? state.quiz.selected : [],
         completed: Boolean(state.quiz?.completed),
         guesses: { ...defaultState.quiz.guesses, ...(state.quiz?.guesses || {}) },
+        keyAware: Boolean(state.quiz?.keyAware),
         stats: { ...defaultState.quiz.stats, ...(state.quiz?.stats || {}) },
       },
     };
@@ -273,6 +339,7 @@ class FretboardApp extends BaseElement {
             <note-filter></note-filter>
             <scale-panel></scale-panel>
             <chord-panel></chord-panel>
+            <circle-of-fifths-panel></circle-of-fifths-panel>
             <quiz-panel></quiz-panel>
           </section>
           <section class="workspace" aria-label="Fretboard">
@@ -421,6 +488,7 @@ class ModeSelector extends BaseElement {
       ["notes", "Notes"],
       ["scales", "Scales"],
       ["chords", "Chords"],
+      ["circle", "Circle"],
       ["quiz", "Quiz"],
     ];
     this.innerHTML = `
@@ -494,6 +562,8 @@ class ChordPanel extends BaseElement {
       this.innerHTML = "";
       return;
     }
+    const key = getCircleKeyData(state.circleKey);
+    const diatonic = getDiatonicChords(key);
     this.innerHTML = `
       <section class="panel">
         <h2>Chord</h2>
@@ -507,6 +577,12 @@ class ChordPanel extends BaseElement {
               .join("")}</select>
           </label>
         </div>
+        <div class="helper-list" aria-label="Chords in selected key">
+          <strong>${escapeHtml(key.major)} major chords</strong>
+          <div class="chip-row">
+            ${diatonic.map((item) => `<span class="info-chip">${escapeHtml(item.degree)}: ${escapeHtml(item.chord)}</span>`).join("")}
+          </div>
+        </div>
       </section>
     `;
     this.querySelector("[name='root']").addEventListener("change", (event) => this.emit("app-update", { rootNote: event.target.value }));
@@ -514,13 +590,111 @@ class ChordPanel extends BaseElement {
   }
 }
 
+class CircleOfFifthsPanel extends BaseElement {
+  render() {
+    const state = store.state;
+    if (state.mode !== "circle") {
+      this.innerHTML = "";
+      return;
+    }
+    const selectedKey = getCircleKeyData(state.circleKey);
+    const chords = getDiatonicChords(selectedKey);
+    this.innerHTML = `
+      <section class="panel circle-panel">
+        <h2>Circle of Fifths</h2>
+        <div class="circle-layout">
+          <svg class="circle-diagram" viewBox="0 0 320 320" role="group" aria-label="Interactive circle of fifths">
+            <circle class="circle-ring" cx="160" cy="160" r="139"></circle>
+            <circle class="circle-inner-ring" cx="160" cy="160" r="91"></circle>
+            ${CIRCLE_KEYS.map((key, index) => this.renderKeyNode(key, index, selectedKey.major)).join("")}
+            <text class="circle-center-title" x="160" y="151" text-anchor="middle">Key</text>
+            <text class="circle-center-key" x="160" y="178" text-anchor="middle">${escapeHtml(selectedKey.major)}</text>
+          </svg>
+          <div class="key-summary">
+            <div class="summary-block">
+              <span>Major scale</span>
+              <strong>${selectedKey.scale.map((note) => escapeHtml(note)).join(" ")}</strong>
+            </div>
+            <div class="summary-grid">
+              <div class="summary-block">
+                <span>Relative minor</span>
+                <strong>${escapeHtml(selectedKey.minor)}</strong>
+              </div>
+              <div class="summary-block">
+                <span>Accidentals</span>
+                <strong>${escapeHtml(accidentalLabel(selectedKey))}</strong>
+              </div>
+              <div class="summary-block wide">
+                <span>Closely related</span>
+                <strong>${escapeHtml(getCloselyRelatedKeys(selectedKey.major))}</strong>
+              </div>
+            </div>
+            <div class="summary-block">
+              <span>Diatonic chords</span>
+              <div class="chord-grid">
+                ${chords.map((item) => `<span><b>${escapeHtml(item.degree)}</b>${escapeHtml(item.chord)}</span>`).join("")}
+              </div>
+            </div>
+            <div class="summary-block">
+              <span>Borrowed/modal color</span>
+              <strong>${escapeHtml(getBorrowedOptions(selectedKey))}</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+    `;
+    this.querySelectorAll("[data-circle-key]").forEach((node) => {
+      const selectKey = () => {
+        const key = getCircleKeyData(node.dataset.circleKey);
+        this.emit("app-update", {
+          circleKey: key.major,
+          rootNote: normalizeNote(key.major),
+          accidental: key.type === "flats" ? "flats" : "sharps",
+          selectedScale: "Major",
+        });
+      };
+      node.addEventListener("click", selectKey);
+      node.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          selectKey();
+        }
+      });
+    });
+  }
+
+  renderKeyNode(key, index, selectedMajor) {
+    const angle = index * 30 - 90;
+    const radians = (angle * Math.PI) / 180;
+    const outer = this.pointOnCircle(160, 160, 119, radians);
+    const inner = this.pointOnCircle(160, 160, 75, radians);
+    const selected = key.major === selectedMajor;
+    return `
+      <g class="circle-key ${selected ? "selected" : ""}" data-circle-key="${escapeHtml(key.major)}" role="button" tabindex="0" aria-label="${escapeHtml(key.major)} major, relative minor ${escapeHtml(key.minor)}">
+        <circle cx="${outer.x}" cy="${outer.y}" r="24"></circle>
+        <text x="${outer.x}" y="${outer.y + 5}" text-anchor="middle">${escapeHtml(key.major)}</text>
+        <circle class="minor-node" cx="${inner.x}" cy="${inner.y}" r="18"></circle>
+        <text class="minor-label" x="${inner.x}" y="${inner.y + 4}" text-anchor="middle">${escapeHtml(key.minor)}</text>
+      </g>
+    `;
+  }
+
+  pointOnCircle(centerX, centerY, radius, radians) {
+    return {
+      x: Number((centerX + Math.cos(radians) * radius).toFixed(2)),
+      y: Number((centerY + Math.sin(radians) * radius).toFixed(2)),
+    };
+  }
+}
+
 class QuizPanel extends BaseElement {
   render() {
-    const { mode, accidental, quiz } = store.state;
+    const { mode, accidental, quiz, circleKey } = store.state;
     if (mode !== "quiz") {
       this.innerHTML = "";
       return;
     }
+    const key = getCircleKeyData(circleKey);
     const answerTotal = getAnswerKeys(store.state).size;
     const found = quiz.selected.filter((key) => getAnswerKeys(store.state).has(key)).length;
     const buttonLabel = quiz.active ? "Stop quiz" : "Start quiz";
@@ -531,11 +705,18 @@ class QuizPanel extends BaseElement {
           <strong>${quiz.active ? `Find all ${escapeHtml(displayNote(quiz.questionNote, accidental))} notes` : "Quiz stopped"}</strong>
           <span class="score">${escapeHtml(quiz.scoreText || (quiz.active ? `${found}/${answerTotal} found. Correct ${quiz.guesses.correct}, incorrect ${quiz.guesses.incorrect}.` : "Press Start quiz when you want a new round."))}</span>
         </div>
+        <label class="toggle-row">
+          <input type="checkbox" name="keyAware" ${quiz.keyAware ? "checked" : ""}>
+          Ask notes from ${escapeHtml(key.major)} major
+        </label>
         <div class="button-row" style="margin-top: .75rem;">
           <button type="button" class="${quiz.active ? "danger" : "primary"}" data-quiz="${quiz.active ? "stop" : "start"}">${buttonLabel}</button>
         </div>
       </section>
     `;
+    this.querySelector("[name='keyAware']").addEventListener("change", (event) => {
+      this.emit("app-update", { quiz: { ...store.state.quiz, keyAware: event.target.checked } });
+    });
     this.querySelectorAll("[data-quiz]").forEach((button) => {
       button.addEventListener("click", () => this.emit("quiz-action", { action: button.dataset.quiz }));
     });
@@ -624,6 +805,7 @@ function getModeLabel(state) {
   if (state.mode === "notes") return `Showing ${state.selectedNotes.map((note) => displayNote(note, state.accidental)).join(", ")}`;
   if (state.mode === "scales") return `${displayNote(state.rootNote, state.accidental)} ${state.selectedScale}`;
   if (state.mode === "chords") return `${displayNote(state.rootNote, state.accidental)} ${state.selectedChord}`;
+  if (state.mode === "circle") return `${getCircleKeyData(state.circleKey).major} major context`;
   if (state.mode === "quiz") return state.quiz.active ? `Find ${displayNote(state.quiz.questionNote, state.accidental)}` : "Quiz stopped";
   return "All notes";
 }
@@ -631,7 +813,8 @@ function getModeLabel(state) {
 function handleQuizAction(action, position) {
   const state = store.state;
   if (action === "start") {
-    const questionNote = NOTES[Math.floor(Math.random() * NOTES.length)];
+    const questionPool = state.quiz.keyAware ? getCircleKeyData(state.circleKey).scale.map(normalizeNote) : NOTES;
+    const questionNote = questionPool[Math.floor(Math.random() * questionPool.length)];
     store.update({
       mode: "quiz",
       quiz: {
@@ -729,4 +912,5 @@ customElements.define("mode-selector", ModeSelector);
 customElements.define("note-filter", NoteFilter);
 customElements.define("scale-panel", ScalePanel);
 customElements.define("chord-panel", ChordPanel);
+customElements.define("circle-of-fifths-panel", CircleOfFifthsPanel);
 customElements.define("quiz-panel", QuizPanel);

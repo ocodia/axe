@@ -16,6 +16,7 @@ The app is local-first and runs entirely in the browser using plain HTML, modern
 - Specific-note highlighting
 - Scale highlighting with root emphasis
 - Chord-tone highlighting with root emphasis
+- Interactive circle of fifths with key signatures, relative minors, diatonic chords, and related-key context
 - Simple quiz mode with immediate note reveal and scoring
 - Offline support through a service worker
 - Installable PWA manifest
