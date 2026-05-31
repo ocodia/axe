@@ -222,21 +222,43 @@ function getDiatonicChords(key) {
   return key.scale.map((note, index) => ({
     degree: ROMAN_DEGREES[index],
     chord: `${note}${DIATONIC_SUFFIXES[index]}`,
+    root: normalizeNote(note),
+    type: DIATONIC_SUFFIXES[index] === "m" ? "Minor" : DIATONIC_SUFFIXES[index] === "dim" ? "Diminished" : "Major",
   }));
 }
 
 function getCloselyRelatedKeys(keyName) {
+  return getCloselyRelatedKeyChords(keyName).map((chord) => chord.label).join(", ");
+}
+
+function getCloselyRelatedKeyChords(keyName) {
   const index = CIRCLE_MAJOR_KEYS.indexOf(normalizeCircleKey(keyName));
   const key = CIRCLE_KEYS[index] || CIRCLE_KEYS[0];
-  const previous = CIRCLE_KEYS[(index + CIRCLE_KEYS.length - 1) % CIRCLE_KEYS.length].major;
-  const next = CIRCLE_KEYS[(index + 1) % CIRCLE_KEYS.length].major;
-  return [previous, next, key.minor].join(", ");
+  const previous = CIRCLE_KEYS[(index + CIRCLE_KEYS.length - 1) % CIRCLE_KEYS.length];
+  const next = CIRCLE_KEYS[(index + 1) % CIRCLE_KEYS.length];
+  return [
+    { label: previous.major, root: normalizeNote(previous.major), type: "Major" },
+    { label: next.major, root: normalizeNote(next.major), type: "Major" },
+    { label: key.minor, root: normalizeNote(key.scale[5]), type: "Minor" },
+  ];
 }
 
 function getBorrowedOptions(key) {
+  return getBorrowedChordOptions(key).map((chord) => `${chord.degree}: ${chord.label}`).join(", ");
+}
+
+function getBorrowedChordOptions(key) {
   const root = normalizeNote(key.major);
   const accidental = key.type === "sharps" ? "sharps" : "flats";
-  return BORROWED_INTERVALS.map(([degree, interval, quality]) => `${degree}: ${displayNote(transpose(root, interval), accidental)}${quality}`).join(", ");
+  return BORROWED_INTERVALS.map(([degree, interval, quality]) => {
+    const note = displayNote(transpose(root, interval), accidental);
+    return {
+      degree,
+      label: `${note}${quality}`,
+      root: normalizeNote(note),
+      type: quality === "m" ? "Minor" : "Major",
+    };
+  });
 }
 
 function complexityIndex(value) {
@@ -339,6 +361,16 @@ function chordInfoForRoman(token, scale, tonality) {
   };
 }
 
+function sanitizeFocusChord(focusChord) {
+  if (!focusChord || !CHORDS[focusChord.type]) return null;
+  const root = normalizeNote(focusChord.root);
+  return {
+    label: focusChord.label || `${displayNote(root)} ${focusChord.type}`,
+    root,
+    type: focusChord.type,
+  };
+}
+
 function getChordFunction(token) {
   const { degree, extension } = splitRomanToken(token);
   return CHORD_FUNCTION_BY_ROMAN[`${degree}${extension}`] || CHORD_FUNCTION_BY_ROMAN[degree] || "tonic";
@@ -377,6 +409,7 @@ const defaultState = {
   mode: "all",
   rootNote: "C",
   circleKey: "C",
+  circleFocusChord: null,
   selectedScale: "Major",
   selectedChord: "Major",
   selectedNotes: ["C"],
@@ -426,6 +459,7 @@ class Store extends EventTarget {
       theme: state.theme === "dark" ? "dark" : "light",
       rootNote: normalizeNote(state.rootNote),
       circleKey: normalizeCircleKey(state.circleKey || state.rootNote, state.accidental),
+      circleFocusChord: sanitizeFocusChord(state.circleFocusChord),
       selectedNotes: Array.isArray(state.selectedNotes) && state.selectedNotes.length ? [...new Set(state.selectedNotes.map(normalizeNote))] : ["C"],
       selectedScale: SCALES[state.selectedScale] ? state.selectedScale : "Major",
       selectedChord: CHORDS[state.selectedChord] ? state.selectedChord : "Major",
@@ -436,14 +470,7 @@ class Store extends EventTarget {
         tonality: normalizeTonality(state.chordHelper?.tonality),
         style: normalizeHelperStyle(state.chordHelper?.style),
         complexity: normalizeHelperComplexity(state.chordHelper?.complexity),
-        focusChord:
-          state.chordHelper?.focusChord && CHORDS[state.chordHelper.focusChord.type]
-            ? {
-                label: state.chordHelper.focusChord.label || `${displayNote(state.chordHelper.focusChord.root)} ${state.chordHelper.focusChord.type}`,
-                root: normalizeNote(state.chordHelper.focusChord.root),
-                type: state.chordHelper.focusChord.type,
-              }
-            : null,
+        focusChord: sanitizeFocusChord(state.chordHelper?.focusChord),
       },
       quiz: {
         ...defaultState.quiz,
@@ -802,6 +829,9 @@ class CircleOfFifthsPanel extends BaseElement {
     }
     const selectedKey = getCircleKeyData(state.circleKey);
     const chords = getDiatonicChords(selectedKey);
+    const relativeMinor = { label: selectedKey.minor, root: normalizeNote(selectedKey.scale[5]), type: "Minor" };
+    const relatedChords = getCloselyRelatedKeyChords(selectedKey.major);
+    const borrowedChords = getBorrowedChordOptions(selectedKey);
     this.innerHTML = `
       <section class="panel circle-panel">
         <h2>Circle of Fifths</h2>
@@ -821,7 +851,7 @@ class CircleOfFifthsPanel extends BaseElement {
             <div class="summary-grid">
               <div class="summary-block">
                 <span>Relative minor</span>
-                <strong>${escapeHtml(selectedKey.minor)}</strong>
+                <div class="summary-chords">${this.renderCircleChordButton(relativeMinor)}</div>
               </div>
               <div class="summary-block">
                 <span>Accidentals</span>
@@ -829,18 +859,18 @@ class CircleOfFifthsPanel extends BaseElement {
               </div>
               <div class="summary-block wide">
                 <span>Closely related</span>
-                <strong>${escapeHtml(getCloselyRelatedKeys(selectedKey.major))}</strong>
+                <div class="summary-chords">${relatedChords.map((chord) => this.renderCircleChordButton(chord)).join("")}</div>
               </div>
             </div>
             <div class="summary-block">
               <span>Diatonic chords</span>
               <div class="chord-grid">
-                ${chords.map((item) => `<span><b>${escapeHtml(item.degree)}</b>${escapeHtml(item.chord)}</span>`).join("")}
+                ${chords.map((item) => this.renderCircleChordButton({ label: item.chord, root: item.root, type: item.type, degree: item.degree })).join("")}
               </div>
             </div>
             <div class="summary-block">
               <span>Borrowed/modal color</span>
-              <strong>${escapeHtml(getBorrowedOptions(selectedKey))}</strong>
+              <div class="summary-chords">${borrowedChords.map((chord) => this.renderCircleChordButton(chord)).join("")}</div>
             </div>
           </div>
         </div>
@@ -852,6 +882,7 @@ class CircleOfFifthsPanel extends BaseElement {
         this.emit("app-update", {
           circleKey: key.major,
           rootNote: normalizeNote(key.major),
+          circleFocusChord: null,
           accidental: key.type === "flats" ? "flats" : "sharps",
           selectedScale: "Major",
           chordHelper: { ...store.state.chordHelper, key: key.major },
@@ -865,6 +896,30 @@ class CircleOfFifthsPanel extends BaseElement {
         }
       });
     });
+    this.querySelectorAll("[data-circle-chord-root]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const focusChord = {
+          label: button.dataset.circleChordLabel,
+          root: button.dataset.circleChordRoot,
+          type: button.dataset.circleChordType,
+        };
+        this.emit("app-update", {
+          circleFocusChord: focusChord,
+          rootNote: focusChord.root,
+          selectedChord: focusChord.type,
+        });
+      });
+    });
+  }
+
+  renderCircleChordButton(chord) {
+    const focused = store.state.circleFocusChord;
+    return `
+      <button type="button" data-circle-chord-root="${escapeHtml(chord.root)}" data-circle-chord-type="${escapeHtml(chord.type)}" data-circle-chord-label="${escapeHtml(chord.label)}" aria-pressed="${focused?.root === chord.root && focused?.type === chord.type}">
+        ${chord.degree ? `<b>${escapeHtml(chord.degree)}</b>` : ""}
+        <span>${escapeHtml(chord.label)}</span>
+      </button>
+    `;
   }
 
   renderKeyNode(key, index, selectedMajor) {
@@ -1092,8 +1147,8 @@ class FretboardView extends BaseElement {
     const key = `${pos.stringIndex}:${pos.fret}`;
     const quiz = state.mode === "quiz" ? state.quiz : null;
     const isVisible = state.mode === "all" || visible.has(pos.note) || state.mode === "quiz";
-    const helperRoot = state.mode === "helper" ? state.chordHelper.focusChord?.root : null;
-    const isRoot = ((state.mode === "scales" || state.mode === "chords") && pos.note === state.rootNote) || (helperRoot && pos.note === helperRoot);
+    const focusedRoot = state.mode === "helper" ? state.chordHelper.focusChord?.root : state.mode === "circle" ? state.circleFocusChord?.root : null;
+    const isRoot = ((state.mode === "scales" || state.mode === "chords") && pos.note === state.rootNote) || (focusedRoot && pos.note === focusedRoot);
     const selected = quiz?.selected.includes(key);
     const correctAnswer = quiz && pos.note === quiz.questionNote;
     const completed = quiz?.completed;
@@ -1125,6 +1180,10 @@ function getVisibleNotes(state) {
     const { root, type } = state.chordHelper.focusChord;
     return new Set(notesFromPattern(root, CHORDS[type] || CHORDS.Major));
   }
+  if (state.mode === "circle" && state.circleFocusChord) {
+    const { root, type } = state.circleFocusChord;
+    return new Set(notesFromPattern(root, CHORDS[type] || CHORDS.Major));
+  }
   return new Set(NOTES);
 }
 
@@ -1132,7 +1191,7 @@ function getModeLabel(state) {
   if (state.mode === "notes") return `Showing ${state.selectedNotes.map((note) => displayNote(note, state.accidental)).join(", ")}`;
   if (state.mode === "scales") return `${displayNote(state.rootNote, state.accidental)} ${state.selectedScale}`;
   if (state.mode === "chords") return `${displayNote(state.rootNote, state.accidental)} ${state.selectedChord}`;
-  if (state.mode === "circle") return `${getCircleKeyData(state.circleKey).major} major context`;
+  if (state.mode === "circle") return state.circleFocusChord ? `Showing ${state.circleFocusChord.label}` : `${getCircleKeyData(state.circleKey).major} major context`;
   if (state.mode === "helper") {
     const focus = state.chordHelper.focusChord;
     return focus ? `Showing ${focus.label}` : `${state.chordHelper.key} ${state.chordHelper.tonality} progressions`;

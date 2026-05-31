@@ -644,8 +644,16 @@ fretboard-view {
   gap: 0.35rem;
 }
 
-.chord-grid span {
+.summary-chords {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chord-grid button,
+.summary-chords button {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 0.45rem;
   border: 1px solid var(--border);
@@ -654,10 +662,35 @@ fretboard-view {
   padding: 0.38rem 0.48rem;
   color: var(--text);
   font-size: 0.85rem;
+  font-weight: 850;
 }
 
-.chord-grid b {
+.summary-chords button {
+  min-height: 2.25rem;
+}
+
+.chord-grid button[aria-pressed="true"],
+.summary-chords button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.chord-grid b,
+.summary-chords b {
   color: var(--muted);
+}
+
+.chord-grid button[aria-pressed="true"] b,
+.summary-chords button[aria-pressed="true"] b {
+  color: var(--accent-text);
+}
+
+.summary-block .summary-chords span,
+.summary-block .chord-grid span {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 .chord-helper-panel {
