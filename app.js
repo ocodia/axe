@@ -3,6 +3,7 @@ const FLAT_DISPLAY = { "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb
 const NOTE_ALIASES = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#", "E#": "F", "B#": "C", Cb: "B", Fb: "E" };
 const STORAGE_KEY = "axe:v1";
 const FRET_OPTIONS = [12, 15, 17, 20, 22, 24];
+const MODES = ["all", "notes", "scales", "chords", "circle", "helper", "progression", "quiz"];
 const MARKER_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
 const DOUBLE_MARKERS = new Set([12, 24]);
 const NOTE_COLORS = {
@@ -78,6 +79,11 @@ const CHORD_FUNCTION_BY_ROMAN = {
   V7: "dominant",
   VII: "dominant",
   "vii\u00b0": "dominant",
+  "vii\u00f87": "dominant",
+  "ii\u00f87": "predominant",
+  bIII: "colour/borrowed",
+  bVI: "colour/borrowed",
+  bVII: "colour/borrowed",
 };
 const CHORD_PROGRESSIONS = [
   { numerals: ["I", "V", "vi", "IV"], tonalities: ["major"], styles: ["Pop", "Uplifting", "Folk"], complexity: "Simple", description: "Very common pop movement. Strong, familiar, emotional but stable.", scale: "major / relative minor pentatonic", genres: ["pop", "country", "worship"] },
@@ -101,6 +107,72 @@ const CHORD_PROGRESSIONS = [
   { numerals: ["ii\u00b0", "V", "i"], tonalities: ["minor"], styles: ["Jazz", "Dark"], complexity: "Advanced", description: "Minor-key cadence with a diminished setup and a strong harmonic-minor dominant.", scale: "harmonic minor / chord tones", genres: ["jazz", "classical"] },
   { numerals: ["ii\u00f87", "V7", "i"], tonalities: ["minor"], styles: ["Jazz"], complexity: "Advanced", description: "A jazz minor ii-V-i. The half-diminished ii and dominant V7 aim tightly at tonic.", scale: "harmonic minor / melodic minor colors", genres: ["jazz"] },
 ];
+
+const PROGRESSION_NUMERALS = {
+  major: ["I", "ii", "iii", "IV", "V", "vi", "vii\u00b0", "Imaj7", "ii7", "iii7", "IVmaj7", "V7", "vi7", "vii\u00f87", "bIII", "iv", "bVI", "bVII"],
+  minor: ["i", "ii\u00b0", "III", "iv", "v", "V", "VI", "VII", "i7", "ii\u00f87", "IIImaj7", "iv7", "v7", "V7", "VImaj7", "VII7"],
+};
+
+const PROGRESSION_ROMAN_DETAILS = {
+  major: {
+    I: { interval: 0, type: "Major" },
+    ii: { interval: 2, type: "Minor" },
+    iii: { interval: 4, type: "Minor" },
+    IV: { interval: 5, type: "Major" },
+    V: { interval: 7, type: "Major" },
+    vi: { interval: 9, type: "Minor" },
+    "vii\u00b0": { interval: 11, type: "Diminished" },
+    Imaj7: { interval: 0, type: "Major 7" },
+    ii7: { interval: 2, type: "Minor 7" },
+    iii7: { interval: 4, type: "Minor 7" },
+    IVmaj7: { interval: 5, type: "Major 7" },
+    V7: { interval: 7, type: "Dominant 7" },
+    vi7: { interval: 9, type: "Minor 7" },
+    "vii\u00f87": { interval: 11, type: "Half-Diminished" },
+    bIII: { interval: 3, type: "Major", function: "colour/borrowed" },
+    iv: { interval: 5, type: "Minor", function: "colour/borrowed" },
+    bVI: { interval: 8, type: "Major", function: "colour/borrowed" },
+    bVII: { interval: 10, type: "Major", function: "colour/borrowed" },
+  },
+  minor: {
+    i: { interval: 0, type: "Minor" },
+    "ii\u00b0": { interval: 2, type: "Diminished" },
+    III: { interval: 3, type: "Major" },
+    iv: { interval: 5, type: "Minor" },
+    v: { interval: 7, type: "Minor" },
+    V: { interval: 7, type: "Major" },
+    VI: { interval: 8, type: "Major" },
+    VII: { interval: 10, type: "Major" },
+    i7: { interval: 0, type: "Minor 7" },
+    "ii\u00f87": { interval: 2, type: "Half-Diminished" },
+    IIImaj7: { interval: 3, type: "Major 7" },
+    iv7: { interval: 5, type: "Minor 7" },
+    v7: { interval: 7, type: "Minor 7" },
+    V7: { interval: 7, type: "Dominant 7" },
+    VImaj7: { interval: 8, type: "Major 7" },
+    VII7: { interval: 10, type: "Dominant 7" },
+  },
+};
+
+const NEXT_CHORD_SUGGESTIONS = {
+  major: {
+    I: ["IV", "V", "vi", "ii"],
+    ii: ["V", "vii\u00b0", "IV"],
+    IV: ["V", "I", "ii", "iv"],
+    V: ["I", "vi"],
+    vi: ["IV", "ii", "V"],
+    iv: ["I", "V", "bVII"],
+    bVII: ["I", "IV"],
+  },
+  minor: {
+    i: ["iv", "VI", "VII", "V"],
+    iv: ["V", "v", "VII"],
+    V: ["i", "VI"],
+    VI: ["III", "VII", "iv"],
+    VII: ["i", "III"],
+    v: ["i", "VI"],
+  },
+};
 
 const CHORDS = {
   Major: [0, 4, 7],
@@ -319,11 +391,31 @@ function chordRootForDegree(scale, degree) {
 }
 
 function splitRomanToken(token) {
-  const match = token.match(/^(ii\u00f8|ii\u00b0|vii\u00b0|[ivIV]+)(maj7|dim7|7)?$/);
+  const match = token.match(/^(bIII|bVI|bVII|ii\u00f8|ii\u00b0|vii\u00f8|vii\u00b0|[ivIV]+)(maj7|dim7|7)?$/);
   return match ? { degree: match[1], extension: match[2] || "" } : { degree: token, extension: "" };
 }
 
-function chordNameForRoman(token, scale, tonality) {
+function chordSuffixForType(type) {
+  if (type === "Minor") return "m";
+  if (type === "Dominant 7") return "7";
+  if (type === "Major 7") return "maj7";
+  if (type === "Minor 7") return "m7";
+  if (type === "Diminished") return "dim";
+  if (type === "Diminished 7") return "dim7";
+  if (type === "Half-Diminished") return "m7b5";
+  return "";
+}
+
+function getRomanDetail(token, tonality) {
+  return PROGRESSION_ROMAN_DETAILS[normalizeTonality(tonality)]?.[token] || null;
+}
+
+function chordNameForRoman(token, scale, tonality, accidental = "sharps") {
+  const detail = getRomanDetail(token, tonality);
+  if (detail) {
+    const root = displayNote(transpose(scale[0], detail.interval), accidental);
+    return `${root}${chordSuffixForType(detail.type)}`;
+  }
   const { degree, extension } = splitRomanToken(token);
   const root = chordRootForDegree(scale, degree);
   if (extension === "maj7") return `${root}maj7`;
@@ -339,6 +431,8 @@ function chordNameForRoman(token, scale, tonality) {
 }
 
 function chordTypeForRoman(token, tonality) {
+  const detail = getRomanDetail(token, tonality);
+  if (detail) return detail.type;
   const { degree, extension } = splitRomanToken(token);
   if (extension === "maj7") return "Major 7";
   if (extension === "dim7") return "Diminished 7";
@@ -352,10 +446,11 @@ function chordTypeForRoman(token, tonality) {
   return "Major";
 }
 
-function chordInfoForRoman(token, scale, tonality) {
-  const rootLabel = chordRootForDegree(scale, splitRomanToken(token).degree);
+function chordInfoForRoman(token, scale, tonality, accidental = "sharps") {
+  const detail = getRomanDetail(token, tonality);
+  const rootLabel = detail ? displayNote(transpose(scale[0], detail.interval), accidental) : chordRootForDegree(scale, splitRomanToken(token).degree);
   return {
-    label: chordNameForRoman(token, scale, tonality),
+    label: chordNameForRoman(token, scale, tonality, accidental),
     root: normalizeNote(rootLabel),
     type: chordTypeForRoman(token, tonality),
   };
@@ -372,6 +467,8 @@ function sanitizeFocusChord(focusChord) {
 }
 
 function getChordFunction(token) {
+  const detail = getRomanDetail(token, "major") || getRomanDetail(token, "minor");
+  if (detail?.function) return detail.function;
   const { degree, extension } = splitRomanToken(token);
   return CHORD_FUNCTION_BY_ROMAN[`${degree}${extension}`] || CHORD_FUNCTION_BY_ROMAN[degree] || "tonic";
 }
@@ -400,6 +497,105 @@ function practiceScaleLabel(keyName, tonality, suggestion) {
   return suggestion.scale.replace("major", `${root} major`).replace("relative minor", relativeMinor).replace("natural minor", `${root} natural minor`).replace("harmonic minor", `${root} harmonic minor`);
 }
 
+function supportedNumeralsForTonality(tonality) {
+  return PROGRESSION_NUMERALS[normalizeTonality(tonality)];
+}
+
+function sanitizeProgressionBuilder(builder = {}, accidental = "sharps") {
+  const key = normalizeCircleKey(builder.key || "C", accidental);
+  const tonality = normalizeTonality(builder.tonality);
+  const supported = supportedNumeralsForTonality(tonality);
+  const numerals = Array.isArray(builder.numerals) ? builder.numerals.filter((token) => supported.includes(token)) : [];
+  const fallbackNumerals = tonality === "minor" ? ["i", "VI", "VII", "i"] : defaultState.progressionBuilder.numerals;
+  const safeNumerals = numerals.length ? numerals : [...fallbackNumerals];
+  const focusedIndex = Math.max(0, Math.min(safeNumerals.length - 1, Number(builder.focusedIndex) || 0));
+  const savedProgressions = Array.isArray(builder.savedProgressions)
+    ? builder.savedProgressions
+        .filter((item) => item && Array.isArray(item.numerals))
+        .map((item) => {
+          const savedTonality = normalizeTonality(item.tonality);
+          const savedSupported = supportedNumeralsForTonality(savedTonality);
+          const savedNumerals = item.numerals.filter((token) => savedSupported.includes(token));
+          return {
+            id: item.id || uid(),
+            name: item.name || progressionName(item.key || "C", savedTonality, savedNumerals),
+            key: normalizeCircleKey(item.key || "C", accidental),
+            tonality: savedTonality,
+            numerals: savedNumerals.length ? savedNumerals : savedTonality === "minor" ? ["i", "VI", "VII"] : ["I", "V", "vi", "IV"],
+            createdAt: item.createdAt || new Date().toISOString(),
+          };
+        })
+    : [];
+  return { key, tonality, numerals: safeNumerals, focusedIndex, savedProgressions };
+}
+
+function progressionName(key, tonality, numerals) {
+  return `${normalizeCircleKey(key)} ${normalizeTonality(tonality)} \u00b7 ${numerals.join(" - ")}`;
+}
+
+function getProgressionContext(builder) {
+  const key = getCircleKeyData(builder.key);
+  const keyAccidental = key.type === "flats" ? "flats" : "sharps";
+  const scale = getScaleForTonality(key.major, builder.tonality, keyAccidental);
+  const accidental = scale.some((note) => note.includes("b")) ? "flats" : keyAccidental;
+  const chords = builder.numerals.map((token) => chordInfoForRoman(token, scale, builder.tonality, accidental));
+  const focusedIndex = Math.max(0, Math.min(chords.length - 1, builder.focusedIndex || 0));
+  const focusedNumeral = builder.numerals[focusedIndex];
+  const focusedChord = chords[focusedIndex];
+  return { key, accidental, scale, chords, focusedIndex, focusedNumeral, focusedChord };
+}
+
+function progressionExplanation(builder) {
+  const { scale, focusedNumeral, focusedChord } = getProgressionContext(builder);
+  const functionName = getChordFunction(focusedNumeral);
+  const chordTones = notesFromPattern(focusedChord.root, CHORDS[focusedChord.type] || CHORDS.Major);
+  const keyNotes = scale.map(normalizeNote);
+  const passing = keyNotes.filter((note) => !chordTones.includes(note)).slice(0, 4);
+  const arc = builder.numerals.join("-");
+  const overview =
+    arc === "I-V-vi-IV"
+      ? "This starts at home, moves to dominant tension, shifts to the relative minor, then lands on the IV chord for a broad, familiar pop sound."
+      : `This progression moves through ${[...new Set(builder.numerals.map(getChordFunction))].join(", ")} functions, giving you a clear harmonic path to write over.`;
+  const focus =
+    functionName === "dominant"
+      ? `The focused chord is ${focusedNumeral}, which creates tension and usually wants to resolve back to I.`
+      : functionName === "tonic"
+        ? `The focused chord is ${focusedNumeral}, which feels settled and anchors the key.`
+        : functionName === "relative"
+          ? `The focused chord is ${focusedNumeral}, which brings relative-minor colour while staying close to home.`
+          : functionName === "colour/borrowed"
+            ? `The focused chord is ${focusedNumeral}, which adds borrowed colour outside the plain diatonic set.`
+            : `The focused chord is ${focusedNumeral}, which sets up motion towards stronger resolution points.`;
+  return {
+    overview,
+    focus,
+    melody: `Suggested melody notes over this chord: ${chordTones.join(", ")}.`,
+    passing: `Good passing notes from the key: ${(passing.length ? passing : keyNotes).join(", ")}.`,
+  };
+}
+
+function nextChordSuggestions(builder) {
+  const current = builder.numerals[builder.focusedIndex] || builder.numerals[0];
+  const { degree } = splitRomanToken(current);
+  const supported = supportedNumeralsForTonality(builder.tonality);
+  const direct = NEXT_CHORD_SUGGESTIONS[builder.tonality]?.[current] || NEXT_CHORD_SUGGESTIONS[builder.tonality]?.[degree] || [];
+  return direct.filter((token) => supported.includes(token));
+}
+
+function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text);
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.left = "-9999px";
+  document.body.append(area);
+  area.select();
+  const copied = document.execCommand("copy");
+  area.remove();
+  return copied ? Promise.resolve() : Promise.reject(new Error("Clipboard unavailable"));
+}
+
 const defaultState = {
   selectedTuningId: "guitar-standard",
   customTunings: [],
@@ -419,6 +615,13 @@ const defaultState = {
     style: "Pop",
     complexity: "Simple",
     focusChord: null,
+  },
+  progressionBuilder: {
+    key: "C",
+    tonality: "major",
+    numerals: ["I", "V", "vi", "IV"],
+    focusedIndex: 0,
+    savedProgressions: [],
   },
   quiz: {
     active: false,
@@ -455,6 +658,7 @@ class Store extends EventTarget {
       selectedTuningId: tuning.id,
       customTunings,
       frets: clampFrets(state.frets || tuning.defaultFrets || 22),
+      mode: MODES.includes(state.mode) ? state.mode : "all",
       accidental: state.accidental === "flats" ? "flats" : "sharps",
       theme: state.theme === "dark" ? "dark" : "light",
       rootNote: normalizeNote(state.rootNote),
@@ -472,6 +676,7 @@ class Store extends EventTarget {
         complexity: normalizeHelperComplexity(state.chordHelper?.complexity),
         focusChord: sanitizeFocusChord(state.chordHelper?.focusChord),
       },
+      progressionBuilder: sanitizeProgressionBuilder(state.progressionBuilder, state.accidental),
       quiz: {
         ...defaultState.quiz,
         ...(state.quiz || {}),
@@ -569,6 +774,7 @@ class FretboardApp extends BaseElement {
             <chord-panel></chord-panel>
             <circle-of-fifths-panel></circle-of-fifths-panel>
             <chord-helper-panel></chord-helper-panel>
+            <progression-builder-panel></progression-builder-panel>
             <quiz-panel></quiz-panel>
           </section>
           <section class="workspace" aria-label="Fretboard">
@@ -719,6 +925,7 @@ class ModeSelector extends BaseElement {
       ["chords", "Chords"],
       ["circle", "Circle"],
       ["helper", "Helper"],
+      ["progression", "Progression"],
       ["quiz", "Quiz"],
     ];
     this.innerHTML = `
@@ -1000,7 +1207,7 @@ class ChordHelperPanel extends BaseElement {
 
   renderSuggestion(suggestion, key, scale, tonality) {
     const focused = store.state.chordHelper.focusChord;
-    const chords = suggestion.numerals.map((token) => chordInfoForRoman(token, scale, tonality));
+    const chords = suggestion.numerals.map((token) => chordInfoForRoman(token, scale, tonality, key.type === "flats" ? "flats" : "sharps"));
     return `
       <article class="progression-card">
         <div class="progression-head">
@@ -1061,6 +1268,225 @@ class ChordHelperPanel extends BaseElement {
         selectedChord: focusChord.type,
       });
     });
+  }
+}
+
+class ProgressionBuilderPanel extends BaseElement {
+  constructor() {
+    super();
+    this.copyStatus = "";
+  }
+
+  render() {
+    const state = store.state;
+    if (state.mode !== "progression") {
+      this.innerHTML = "";
+      return;
+    }
+    const builder = state.progressionBuilder;
+    const context = getProgressionContext(builder);
+    const explanation = progressionExplanation(builder);
+    const supported = supportedNumeralsForTonality(builder.tonality);
+    const suggestions = nextChordSuggestions(builder);
+    this.innerHTML = `
+      <section class="panel progression-builder-panel">
+        <h2>Progression Builder</h2>
+        <div class="compact-grid progression-controls">
+          <label>Key
+            <select name="progressionKey">
+              ${CIRCLE_KEYS.map((item) => `<option value="${escapeHtml(item.major)}" ${item.major === context.key.major ? "selected" : ""}>${escapeHtml(item.major)}</option>`).join("")}
+            </select>
+          </label>
+          <label>Tonality
+            <select name="progressionTonality">
+              <option value="major" ${builder.tonality === "major" ? "selected" : ""}>Major</option>
+              <option value="minor" ${builder.tonality === "minor" ? "selected" : ""}>Minor</option>
+            </select>
+          </label>
+        </div>
+        <div class="builder-chord-row" aria-label="Current progression">
+          ${builder.numerals.map((token, index) => this.renderChordCard(token, context.chords[index], index, builder.focusedIndex)).join("")}
+        </div>
+        <div class="builder-actions">
+          <label>Add chord
+            <select name="addNumeral">
+              ${supported.map((token) => `<option value="${escapeHtml(token)}">${escapeHtml(token)}</option>`).join("")}
+            </select>
+          </label>
+          <button type="button" data-action="add-chord" class="primary">Add chord</button>
+          <button type="button" data-action="remove-chord" class="danger" ${builder.numerals.length <= 1 ? "disabled" : ""}>Remove focused chord</button>
+          <button type="button" data-action="move-left" ${builder.focusedIndex <= 0 ? "disabled" : ""}>Move left</button>
+          <button type="button" data-action="move-right" ${builder.focusedIndex >= builder.numerals.length - 1 ? "disabled" : ""}>Move right</button>
+          <button type="button" data-action="reset-common">Reset to common progression</button>
+          <button type="button" data-action="save-progression">Save progression</button>
+          <button type="button" data-action="copy-progression">Copy progression</button>
+        </div>
+        <div class="suggestion-row" aria-label="Suggested next chords">
+          <strong>Suggested next chords</strong>
+          <div class="chip-row">
+            ${suggestions.length ? suggestions.map((token) => `<button type="button" data-suggest="${escapeHtml(token)}">${escapeHtml(token)}</button>`).join("") : `<span class="info-chip">Try I or V</span>`}
+          </div>
+        </div>
+        <div class="explanation-grid">
+          <article class="summary-block wide">
+            <span>Why it works</span>
+            <p>${escapeHtml(explanation.overview)}</p>
+            <p>${escapeHtml(explanation.focus)}</p>
+            <p>${escapeHtml(explanation.melody)}</p>
+            <p>${escapeHtml(explanation.passing)}</p>
+          </article>
+          <article class="summary-block">
+            <span>Resolved chords</span>
+            <strong>${context.chords.map((chord) => escapeHtml(chord.label)).join(" - ")}</strong>
+          </article>
+          <article class="summary-block">
+            <span>Focused chord tones</span>
+            <strong>${notesFromPattern(context.focusedChord.root, CHORDS[context.focusedChord.type] || CHORDS.Major).map((note) => escapeHtml(displayNote(note, context.accidental))).join(" ")}</strong>
+          </article>
+        </div>
+        <div class="saved-progressions">
+          <div class="progression-head">
+            <strong>Saved progressions</strong>
+            <span aria-live="polite">${escapeHtml(this.copyStatus)}</span>
+          </div>
+          ${
+            builder.savedProgressions.length
+              ? `<div class="saved-list">${builder.savedProgressions.map((item) => this.renderSavedProgression(item)).join("")}</div>`
+              : `<p>No saved progressions yet.</p>`
+          }
+        </div>
+      </section>
+    `;
+    this.bindEvents();
+  }
+
+  renderChordCard(token, chord, index, focusedIndex) {
+    const focused = index === focusedIndex;
+    const functionName = getChordFunction(token);
+    return `
+      <button type="button" class="builder-chord-card" data-focus-index="${index}" aria-current="${focused ? "true" : "false"}" aria-label="Focus ${escapeHtml(token)} ${escapeHtml(chord.label)}">
+        <b>${escapeHtml(token)}</b>
+        <span>${escapeHtml(chord.label)}</span>
+        <small>${escapeHtml(functionName)}</small>
+      </button>
+    `;
+  }
+
+  renderSavedProgression(item) {
+    return `
+      <article class="saved-progression">
+        <div>
+          <strong>${escapeHtml(item.name)}</strong>
+          <span>${escapeHtml(item.numerals.join(" - "))}</span>
+        </div>
+        <div class="button-row">
+          <button type="button" data-load-saved="${escapeHtml(item.id)}">Load</button>
+          <button type="button" class="danger" data-delete-saved="${escapeHtml(item.id)}">Delete</button>
+        </div>
+      </article>
+    `;
+  }
+
+  bindEvents() {
+    this.querySelector("[name='progressionKey']").addEventListener("change", (event) => this.updateBuilder({ key: event.target.value }));
+    this.querySelector("[name='progressionTonality']").addEventListener("change", (event) => {
+      const tonality = normalizeTonality(event.target.value);
+      const numerals = tonality === "minor" ? ["i", "VI", "VII", "i"] : ["I", "V", "vi", "IV"];
+      this.updateBuilder({ tonality, numerals, focusedIndex: 0 });
+    });
+    this.querySelector("[data-action='add-chord']").addEventListener("click", () => {
+      const token = this.querySelector("[name='addNumeral']").value;
+      const builder = store.state.progressionBuilder;
+      this.updateBuilder({ numerals: [...builder.numerals, token], focusedIndex: builder.numerals.length });
+    });
+    this.querySelector("[data-action='remove-chord']").addEventListener("click", () => this.removeFocusedChord());
+    this.querySelector("[data-action='move-left']").addEventListener("click", () => this.moveFocusedChord(-1));
+    this.querySelector("[data-action='move-right']").addEventListener("click", () => this.moveFocusedChord(1));
+    this.querySelector("[data-action='reset-common']").addEventListener("click", () => {
+      const builder = store.state.progressionBuilder;
+      this.updateBuilder({ numerals: builder.tonality === "minor" ? ["i", "VI", "VII", "i"] : ["I", "V", "vi", "IV"], focusedIndex: 0 });
+    });
+    this.querySelector("[data-action='save-progression']").addEventListener("click", () => this.saveProgression());
+    this.querySelector("[data-action='copy-progression']").addEventListener("click", () => this.copyProgression());
+    this.querySelectorAll("[data-focus-index]").forEach((button) => {
+      button.addEventListener("click", () => this.updateBuilder({ focusedIndex: Number(button.dataset.focusIndex) }));
+    });
+    this.querySelectorAll("[data-suggest]").forEach((button) => {
+      button.addEventListener("click", () => this.insertSuggestion(button.dataset.suggest));
+    });
+    this.querySelectorAll("[data-load-saved]").forEach((button) => {
+      button.addEventListener("click", () => this.loadSaved(button.dataset.loadSaved));
+    });
+    this.querySelectorAll("[data-delete-saved]").forEach((button) => {
+      button.addEventListener("click", () => this.deleteSaved(button.dataset.deleteSaved));
+    });
+  }
+
+  updateBuilder(patch) {
+    const next = { ...store.state.progressionBuilder, ...patch };
+    store.update({ progressionBuilder: next });
+  }
+
+  removeFocusedChord() {
+    const builder = store.state.progressionBuilder;
+    if (builder.numerals.length <= 1) return;
+    const numerals = builder.numerals.filter((_, index) => index !== builder.focusedIndex);
+    this.updateBuilder({ numerals, focusedIndex: Math.max(0, builder.focusedIndex - 1) });
+  }
+
+  moveFocusedChord(direction) {
+    const builder = store.state.progressionBuilder;
+    const target = builder.focusedIndex + direction;
+    if (target < 0 || target >= builder.numerals.length) return;
+    const numerals = [...builder.numerals];
+    [numerals[builder.focusedIndex], numerals[target]] = [numerals[target], numerals[builder.focusedIndex]];
+    this.updateBuilder({ numerals, focusedIndex: target });
+  }
+
+  insertSuggestion(token) {
+    const builder = store.state.progressionBuilder;
+    const numerals = [...builder.numerals];
+    numerals.splice(builder.focusedIndex + 1, 0, token);
+    this.updateBuilder({ numerals, focusedIndex: builder.focusedIndex + 1 });
+  }
+
+  saveProgression() {
+    const builder = store.state.progressionBuilder;
+    const saved = {
+      id: uid(),
+      name: progressionName(builder.key, builder.tonality, builder.numerals),
+      key: builder.key,
+      tonality: builder.tonality,
+      numerals: [...builder.numerals],
+      createdAt: new Date().toISOString(),
+    };
+    this.updateBuilder({ savedProgressions: [saved, ...builder.savedProgressions] });
+  }
+
+  loadSaved(id) {
+    const item = store.state.progressionBuilder.savedProgressions.find((saved) => saved.id === id);
+    if (!item) return;
+    this.updateBuilder({ key: item.key, tonality: item.tonality, numerals: [...item.numerals], focusedIndex: 0 });
+  }
+
+  deleteSaved(id) {
+    const builder = store.state.progressionBuilder;
+    this.updateBuilder({ savedProgressions: builder.savedProgressions.filter((item) => item.id !== id) });
+  }
+
+  copyProgression() {
+    const builder = store.state.progressionBuilder;
+    const context = getProgressionContext(builder);
+    const text = `${context.key.major} ${builder.tonality}\n${builder.numerals.join(" - ")}\n${context.chords.map((chord) => chord.label).join(" - ")}`;
+    copyTextToClipboard(text)
+      .then(() => {
+        this.copyStatus = "Copied";
+        this.render();
+      })
+      .catch(() => {
+        this.copyStatus = "Copy unavailable";
+        this.render();
+      });
   }
 }
 
@@ -1147,7 +1573,8 @@ class FretboardView extends BaseElement {
     const key = `${pos.stringIndex}:${pos.fret}`;
     const quiz = state.mode === "quiz" ? state.quiz : null;
     const isVisible = state.mode === "all" || visible.has(pos.note) || state.mode === "quiz";
-    const focusedRoot = state.mode === "helper" ? state.chordHelper.focusChord?.root : state.mode === "circle" ? state.circleFocusChord?.root : null;
+    const progressionFocus = state.mode === "progression" ? getProgressionContext(state.progressionBuilder).focusedChord : null;
+    const focusedRoot = state.mode === "helper" ? state.chordHelper.focusChord?.root : state.mode === "circle" ? state.circleFocusChord?.root : progressionFocus?.root;
     const isRoot = ((state.mode === "scales" || state.mode === "chords") && pos.note === state.rootNote) || (focusedRoot && pos.note === focusedRoot);
     const selected = quiz?.selected.includes(key);
     const correctAnswer = quiz && pos.note === quiz.questionNote;
@@ -1184,6 +1611,10 @@ function getVisibleNotes(state) {
     const { root, type } = state.circleFocusChord;
     return new Set(notesFromPattern(root, CHORDS[type] || CHORDS.Major));
   }
+  if (state.mode === "progression") {
+    const { focusedChord } = getProgressionContext(state.progressionBuilder);
+    return new Set(notesFromPattern(focusedChord.root, CHORDS[focusedChord.type] || CHORDS.Major));
+  }
   return new Set(NOTES);
 }
 
@@ -1195,6 +1626,11 @@ function getModeLabel(state) {
   if (state.mode === "helper") {
     const focus = state.chordHelper.focusChord;
     return focus ? `Showing ${focus.label}` : `${state.chordHelper.key} ${state.chordHelper.tonality} progressions`;
+  }
+  if (state.mode === "progression") {
+    const { key, focusedNumeral, focusedChord, accidental } = getProgressionContext(state.progressionBuilder);
+    const tones = notesFromPattern(focusedChord.root, CHORDS[focusedChord.type] || CHORDS.Major).map((note) => displayNote(note, accidental)).join(" ");
+    return `${key.major} ${state.progressionBuilder.tonality} progression \u00b7 ${focusedNumeral} = ${focusedChord.label}. Chord tones: ${tones}`;
   }
   if (state.mode === "quiz") return state.quiz.active ? `Find ${displayNote(state.quiz.questionNote, state.accidental)}` : "Quiz stopped";
   return "All notes";
@@ -1304,4 +1740,5 @@ customElements.define("scale-panel", ScalePanel);
 customElements.define("chord-panel", ChordPanel);
 customElements.define("circle-of-fifths-panel", CircleOfFifthsPanel);
 customElements.define("chord-helper-panel", ChordHelperPanel);
+customElements.define("progression-builder-panel", ProgressionBuilderPanel);
 customElements.define("quiz-panel", QuizPanel);

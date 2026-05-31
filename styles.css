@@ -232,7 +232,7 @@ label {
 
 .segmented {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 0.35rem;
   width: min(780px, 100%);
 }
@@ -247,6 +247,7 @@ scale-panel,
 chord-panel,
 circle-of-fifths-panel,
 chord-helper-panel,
+progression-builder-panel,
 quiz-panel,
 tuning-panel,
 fretboard-view {
@@ -697,6 +698,10 @@ fretboard-view {
   grid-column: 1 / -1;
 }
 
+.progression-builder-panel {
+  grid-column: 1 / -1;
+}
+
 .helper-controls {
   grid-template-columns: repeat(4, minmax(160px, 1fr));
 }
@@ -806,6 +811,118 @@ fretboard-view {
   margin: 0;
   color: var(--text);
   font-size: 0.84rem;
+}
+
+.progression-controls {
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+}
+
+.builder-chord-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.builder-chord-card {
+  display: grid;
+  justify-items: start;
+  gap: 0.18rem;
+  min-height: 5.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.65rem;
+  color: var(--text);
+  text-align: left;
+}
+
+.builder-chord-card[aria-current="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent), var(--surface) 84%);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.builder-chord-card b {
+  font-size: 1rem;
+}
+
+.builder-chord-card span {
+  font-weight: 850;
+}
+
+.builder-chord-card small {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.builder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.builder-actions label {
+  min-width: min(12rem, 100%);
+}
+
+.suggestion-row,
+.saved-progressions {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.suggestion-row > strong {
+  font-size: 0.85rem;
+}
+
+.suggestion-row button {
+  min-height: 2.2rem;
+}
+
+.explanation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+}
+
+.summary-block p {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.saved-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.saved-progression {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 0.55rem;
+}
+
+.saved-progression div:first-child {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.saved-progression span,
+.saved-progressions p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .score {
@@ -919,8 +1036,15 @@ fretboard-view {
   .circle-layout,
   .summary-grid,
   .helper-controls,
-  .function-strip {
+  .function-strip,
+  .progression-controls,
+  .explanation-grid {
     grid-template-columns: 1fr;
+  }
+
+  .saved-progression {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .circle-key .minor-label {
