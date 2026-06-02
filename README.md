@@ -16,6 +16,8 @@ The app is local-first and runs entirely in the browser using plain HTML, modern
 - Specific-note highlighting
 - Scale highlighting with root emphasis
 - Chord-tone highlighting with root emphasis
+- Position mode for CAGED shapes, pentatonic boxes, scale positions, and focused fret ranges
+- Interval labels for position-focused fretboard learning
 - Interactive circle of fifths with key signatures, relative minors, diatonic chords, and related-key context
 - Chord progression helper with Roman numerals, chord functions, mood filters, and practice-scale suggestions
 - Progression Builder for songwriting-focused Roman numeral progressions
@@ -72,3 +74,7 @@ Clearing site data in the browser will reset saved settings.
 ## Songwriting Workflow
 
 Use Progression mode to choose a key and major/minor tonality, build a Roman numeral progression, and hear the harmony in fretboard terms. Each chord card resolves to a chord name, shows its function, and can be focused so the fretboard highlights the chord tones for melody writing, riffs, and voice-leading ideas.
+
+## Position Learning
+
+Use Positions mode to choose a root note, CAGED shape, pentatonic box, or major/natural minor scale position. The fretboard can focus on the active fret range, emphasise roots, and switch note labels to interval labels so you can practise playable chord tones and scale shapes rather than only full-neck note sets.

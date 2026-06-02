@@ -3,7 +3,7 @@ const FLAT_DISPLAY = { "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb
 const NOTE_ALIASES = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#", "E#": "F", "B#": "C", Cb: "B", Fb: "E" };
 const STORAGE_KEY = "axe:v1";
 const FRET_OPTIONS = [12, 15, 17, 20, 22, 24];
-const MODES = ["all", "notes", "scales", "chords", "circle", "helper", "progression", "quiz"];
+const MODES = ["all", "notes", "scales", "chords", "circle", "helper", "progression", "positions", "quiz"];
 const MARKER_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
 const DOUBLE_MARKERS = new Set([12, 24]);
 const NOTE_COLORS = {
@@ -188,6 +188,155 @@ const CHORDS = {
   "Power Chord": [0, 7],
 };
 
+const POSITION_SYSTEMS = {
+  caged: {
+    label: "CAGED",
+    group: "caged",
+    description: "CAGED connects chord shapes across the neck, helping you find chord tones, triads and nearby melody notes.",
+  },
+  "major-pentatonic": {
+    label: "Major pentatonic",
+    group: "pentatonic",
+    intervals: [0, 2, 4, 7, 9],
+    intervalLabels: ["R", "2", "3", "5", "6"],
+    description: "Major pentatonic gives a brighter sound for country, folk, pop and open-sounding melodies.",
+  },
+  "minor-pentatonic": {
+    label: "Minor pentatonic",
+    group: "pentatonic",
+    intervals: [0, 3, 5, 7, 10],
+    intervalLabels: ["R", "b3", "4", "5", "b7"],
+    description: "Minor pentatonic maps reliable soloing positions for rock, blues and many pop contexts.",
+  },
+  "major-scale": {
+    label: "Major scale",
+    group: "scale",
+    intervals: [0, 2, 4, 5, 7, 9, 11],
+    intervalLabels: ["R", "2", "3", "4", "5", "6", "7"],
+    description: "Major scale positions connect the full diatonic key across the neck for melody writing.",
+  },
+  "natural-minor": {
+    label: "Natural minor",
+    group: "scale",
+    intervals: [0, 2, 3, 5, 7, 8, 10],
+    intervalLabels: ["R", "2", "b3", "4", "5", "b6", "b7"],
+    description: "Natural minor positions give you the complete minor-key note set for darker melodies and riffs.",
+  },
+};
+
+const CAGED_SHAPES = {
+  C: {
+    id: "C",
+    label: "C shape",
+    anchorString: 1,
+    span: [-3, 1],
+    fallbackRange: [0, 4],
+    description: "The C shape keeps the familiar open C outline and moves it to a new root.",
+    usage: "Useful for chord tones and triads around adjacent strings.",
+    tryThis: "Play only the root, third and fifth first, then add one nearby passing note.",
+  },
+  A: {
+    id: "A",
+    label: "A shape",
+    anchorString: 1,
+    span: [0, 3],
+    fallbackRange: [3, 5],
+    description: "The A shape is a practical movable barre form around the middle strings.",
+    usage: "Strong for rhythm parts, compact triads and middle-register lead lines.",
+    tryThis: "Find the nearest chord voicing inside this shape and answer it with a short melody.",
+  },
+  G: {
+    id: "G",
+    label: "G shape",
+    anchorString: 0,
+    span: [-2, 2],
+    fallbackRange: [5, 8],
+    description: "The G shape links lower and higher CAGED areas with a wider chord-tone spread.",
+    usage: "Good for seeing how chord tones continue across strings.",
+    tryThis: "Move from this shape to the next CAGED shape without stopping.",
+  },
+  E: {
+    id: "E",
+    label: "E shape",
+    anchorString: 0,
+    span: [0, 3],
+    fallbackRange: [7, 10],
+    description: "The E shape is the classic movable barre form rooted on the low string.",
+    usage: "Useful for strong rhythm playing and obvious root-note landing points.",
+    tryThis: "Write a two-bar melody using only three notes from this shape.",
+  },
+  D: {
+    id: "D",
+    label: "D shape",
+    anchorString: 3,
+    span: [-2, 2],
+    fallbackRange: [9, 12],
+    description: "The D shape gives a compact upper-string chord area for bright voicings.",
+    usage: "Great for triads, double-stops and melodic fragments on higher strings.",
+    tryThis: "Slide into one chord tone, then land on the nearest root.",
+  },
+};
+
+const POSITION_BOXES = {
+  box1: {
+    id: "box1",
+    label: "Box 1",
+    positionLabel: "Position 1",
+    span: [0, 3],
+    fallbackRange: [5, 8],
+    description: "The home position with roots that are easy to hear and return to.",
+    usage: "Use the root notes as landing points when improvising.",
+    tryThis: "Play a short phrase, pause on the root, then answer it from another string.",
+  },
+  box2: {
+    id: "box2",
+    label: "Box 2",
+    positionLabel: "Position 2",
+    span: [2, 5],
+    fallbackRange: [7, 10],
+    description: "A connected position just above the home box.",
+    usage: "Useful for climbing phrases and brighter upper notes.",
+    tryThis: "Move from this box back to Box 1 without breaking time.",
+  },
+  box3: {
+    id: "box3",
+    label: "Box 3",
+    positionLabel: "Position 3",
+    span: [4, 7],
+    fallbackRange: [9, 12],
+    description: "A middle-neck position that helps connect lower and higher areas.",
+    usage: "Good for linking melodies across the neck.",
+    tryThis: "Write a two-bar melody using only three notes from this position.",
+  },
+  box4: {
+    id: "box4",
+    label: "Box 4",
+    positionLabel: "Position 4",
+    span: [7, 10],
+    fallbackRange: [12, 15],
+    description: "A higher position that opens up singing lead lines.",
+    usage: "Useful for bends, slides and repeated melodic hooks.",
+    tryThis: "Slide into the third, then resolve to the nearest root.",
+  },
+  box5: {
+    id: "box5",
+    label: "Box 5",
+    positionLabel: "Position 5",
+    span: [-2, 1],
+    fallbackRange: [3, 6],
+    description: "The wraparound position that leads back into Box 1.",
+    usage: "Good for learning how the pattern repeats across octaves.",
+    tryThis: "Connect this position into Box 1 without stopping.",
+  },
+};
+
+const FOCUS_RANGES = {
+  open: [0, 4],
+  low: [3, 7],
+  middle: [5, 12],
+  high: [10, 17],
+};
+
 const PRESET_TUNINGS = [
   { id: "guitar-standard", instrument: "Guitar", name: "Standard", strings: ["E", "A", "D", "G", "B", "E"], defaultFrets: 22 },
   { id: "guitar-drop-d", instrument: "Guitar", name: "Drop D", strings: ["D", "A", "D", "G", "B", "E"], defaultFrets: 22 },
@@ -339,6 +488,28 @@ function complexityIndex(value) {
 
 function normalizeTonality(value) {
   return value === "minor" ? "minor" : "major";
+}
+
+function sanitizePositionLearning(positionLearning = {}) {
+  const system = POSITION_SYSTEMS[positionLearning.system] ? positionLearning.system : "caged";
+  const selectedShape = CAGED_SHAPES[positionLearning.selectedShape] ? positionLearning.selectedShape : "C";
+  const selectedBox = POSITION_BOXES[positionLearning.selectedBox] ? positionLearning.selectedBox : "box1";
+  const focusRange = ["auto", "open", "low", "middle", "high", "full"].includes(positionLearning.focusRange)
+    ? positionLearning.focusRange
+    : "auto";
+  return {
+    ...defaultState.positionLearning,
+    ...positionLearning,
+    rootNote: normalizeNote(positionLearning.rootNote || defaultState.positionLearning.rootNote),
+    tonality: normalizeTonality(positionLearning.tonality),
+    system,
+    selectedShape,
+    selectedBox,
+    focusRange,
+    showOnlyPosition: positionLearning.showOnlyPosition === undefined ? true : Boolean(positionLearning.showOnlyPosition),
+    showRoots: positionLearning.showRoots === undefined ? true : Boolean(positionLearning.showRoots),
+    showIntervals: positionLearning.showIntervals === undefined ? true : Boolean(positionLearning.showIntervals),
+  };
 }
 
 function normalizeHelperStyle(value) {
@@ -545,6 +716,97 @@ function getProgressionContext(builder) {
   return { key, accidental, scale, chords, focusedIndex, focusedNumeral, focusedChord };
 }
 
+function getPositionDefinition(positionLearning) {
+  const system = POSITION_SYSTEMS[positionLearning.system] || POSITION_SYSTEMS.caged;
+  const shape = CAGED_SHAPES[positionLearning.selectedShape] || CAGED_SHAPES.C;
+  const box = POSITION_BOXES[positionLearning.selectedBox] || POSITION_BOXES.box1;
+  return {
+    system,
+    shape,
+    box,
+    active: system.group === "caged" ? shape : box,
+  };
+}
+
+function getPositionIntervals(positionLearning) {
+  const { system } = getPositionDefinition(positionLearning);
+  if (system.group === "caged") {
+    return positionLearning.tonality === "minor"
+      ? { intervals: [0, 3, 7], labels: ["R", "b3", "5"] }
+      : { intervals: [0, 4, 7], labels: ["R", "3", "5"] };
+  }
+  return { intervals: system.intervals, labels: system.intervalLabels };
+}
+
+function getPositionNotes(positionLearning) {
+  return notesFromPattern(positionLearning.rootNote, getPositionIntervals(positionLearning).intervals);
+}
+
+function fretForNoteOnString(rootNote, openNote, frets) {
+  const openIndex = NOTES.indexOf(normalizeNote(openNote));
+  const rootIndex = NOTES.indexOf(normalizeNote(rootNote));
+  const first = (rootIndex - openIndex + 12) % 12;
+  for (let fret = first; fret <= frets; fret += 12) {
+    if (fret >= 0) return fret;
+  }
+  return null;
+}
+
+function clampRange(range, frets) {
+  const start = Math.max(0, Math.min(frets, Math.round(range[0])));
+  const end = Math.max(start, Math.min(frets, Math.round(range[1])));
+  return { start, end };
+}
+
+function getPositionFretRange(positionLearning, tuning, frets) {
+  if (positionLearning.focusRange === "full") return { start: 0, end: frets };
+  if (FOCUS_RANGES[positionLearning.focusRange]) return clampRange(FOCUS_RANGES[positionLearning.focusRange], frets);
+  const { system, active } = getPositionDefinition(positionLearning);
+  const anchorString = Math.min(tuning.strings.length - 1, active.anchorString ?? 0);
+  const openNote = tuning.strings[anchorString] || tuning.strings[0] || "E";
+  const rootFret = fretForNoteOnString(positionLearning.rootNote, openNote, frets);
+  const span = active.span || [0, 3];
+  if (rootFret !== null) return clampRange([rootFret + span[0], rootFret + span[1]], frets);
+  return clampRange(active.fallbackRange || (system.group === "caged" ? [3, 7] : [5, 8]), frets);
+}
+
+function isInPositionRange(positionLearning, tuning, frets, fret) {
+  const range = getPositionFretRange(positionLearning, tuning, frets);
+  return fret >= range.start && fret <= range.end;
+}
+
+function getPositionMarker(positionLearning, note, stringIndex, fret, tuning, frets) {
+  const notes = getPositionNotes(positionLearning);
+  const noteIndex = notes.indexOf(note);
+  const inSystem = noteIndex !== -1;
+  const range = getPositionFretRange(positionLearning, tuning, frets);
+  const inRange = fret >= range.start && fret <= range.end;
+  const root = note === positionLearning.rootNote;
+  const interval = inSystem ? getPositionIntervals(positionLearning).labels[noteIndex] : "";
+  return {
+    inSystem,
+    inRange,
+    root,
+    interval,
+    boundary: inRange && (fret === range.start || fret === range.end),
+  };
+}
+
+function getPositionSummary(state, tuning = store.tuning) {
+  const positionLearning = state.positionLearning;
+  const { system, shape, box } = getPositionDefinition(positionLearning);
+  const formula = getPositionIntervals(positionLearning).labels.join(" ");
+  const range = getPositionFretRange(positionLearning, tuning, state.frets);
+  const root = displayNote(positionLearning.rootNote, state.accidental);
+  const shapeLabel = system.group === "caged" ? shape.label : system.group === "scale" ? box.positionLabel : box.label;
+  const title =
+    system.group === "caged"
+      ? `${system.label} \u00b7 ${root} ${positionLearning.tonality} \u00b7 ${shape.label}`
+      : `${system.label} \u00b7 ${root} \u00b7 ${shapeLabel}`;
+  const detail = `Formula: ${formula} \u00b7 Focus: frets ${range.start}-${range.end}`;
+  return { title, detail, formula, range, root, shapeLabel };
+}
+
 function progressionExplanation(builder) {
   const { scale, focusedNumeral, focusedChord } = getProgressionContext(builder);
   const functionName = getChordFunction(focusedNumeral);
@@ -623,6 +885,17 @@ const defaultState = {
     focusedIndex: 0,
     savedProgressions: [],
   },
+  positionLearning: {
+    rootNote: "C",
+    tonality: "major",
+    system: "caged",
+    selectedShape: "C",
+    selectedBox: "box1",
+    focusRange: "auto",
+    showOnlyPosition: true,
+    showRoots: true,
+    showIntervals: true,
+  },
   quiz: {
     active: false,
     questionNote: "C",
@@ -677,6 +950,7 @@ class Store extends EventTarget {
         focusChord: sanitizeFocusChord(state.chordHelper?.focusChord),
       },
       progressionBuilder: sanitizeProgressionBuilder(state.progressionBuilder, state.accidental),
+      positionLearning: sanitizePositionLearning(state.positionLearning),
       quiz: {
         ...defaultState.quiz,
         ...(state.quiz || {}),
@@ -775,6 +1049,7 @@ class FretboardApp extends BaseElement {
             <circle-of-fifths-panel></circle-of-fifths-panel>
             <chord-helper-panel></chord-helper-panel>
             <progression-builder-panel></progression-builder-panel>
+            <position-panel></position-panel>
             <quiz-panel></quiz-panel>
           </section>
           <section class="workspace" aria-label="Fretboard">
@@ -926,6 +1201,7 @@ class ModeSelector extends BaseElement {
       ["circle", "Circle"],
       ["helper", "Helper"],
       ["progression", "Progression"],
+      ["positions", "Positions"],
       ["quiz", "Quiz"],
     ];
     this.innerHTML = `
@@ -1490,6 +1766,106 @@ class ProgressionBuilderPanel extends BaseElement {
   }
 }
 
+class PositionPanel extends BaseElement {
+  render() {
+    const state = store.state;
+    if (state.mode !== "positions") {
+      this.innerHTML = "";
+      return;
+    }
+    const positionLearning = state.positionLearning;
+    const { system, shape, box, active } = getPositionDefinition(positionLearning);
+    const isCaged = system.group === "caged";
+    const isScale = system.group === "scale";
+    const summary = getPositionSummary(state);
+    this.innerHTML = `
+      <section class="panel position-panel">
+        <h2>Positions</h2>
+        <div class="compact-grid position-controls">
+          <label>Root
+            <select name="positionRoot">${NOTES.map((note) => `<option value="${note}" ${note === positionLearning.rootNote ? "selected" : ""}>${escapeHtml(displayNote(note, state.accidental))}</option>`).join("")}</select>
+          </label>
+          <label>System
+            <select name="positionSystem">
+              ${Object.entries(POSITION_SYSTEMS)
+                .map(([value, item]) => `<option value="${value}" ${value === positionLearning.system ? "selected" : ""}>${escapeHtml(item.label)}</option>`)
+                .join("")}
+            </select>
+          </label>
+          <label>Tonality
+            <select name="positionTonality" ${isCaged ? "" : "disabled"}>
+              <option value="major" ${positionLearning.tonality === "major" ? "selected" : ""}>Major</option>
+              <option value="minor" ${positionLearning.tonality === "minor" ? "selected" : ""}>Minor</option>
+            </select>
+          </label>
+          ${
+            isCaged
+              ? `<label>Shape
+                  <select name="positionShape">
+                    ${Object.values(CAGED_SHAPES).map((item) => `<option value="${item.id}" ${item.id === positionLearning.selectedShape ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
+                  </select>
+                </label>`
+              : `<label>${isScale ? "Position" : "Box"}
+                  <select name="positionBox">
+                    ${Object.values(POSITION_BOXES)
+                      .map((item) => `<option value="${item.id}" ${item.id === positionLearning.selectedBox ? "selected" : ""}>${escapeHtml(isScale ? item.positionLabel : item.label)}</option>`)
+                      .join("")}
+                  </select>
+                </label>`
+          }
+          <label>Focus range
+            <select name="positionFocusRange">
+              <option value="auto" ${positionLearning.focusRange === "auto" ? "selected" : ""}>Auto</option>
+              <option value="open" ${positionLearning.focusRange === "open" ? "selected" : ""}>Open</option>
+              <option value="low" ${positionLearning.focusRange === "low" ? "selected" : ""}>Low frets</option>
+              <option value="middle" ${positionLearning.focusRange === "middle" ? "selected" : ""}>Middle frets</option>
+              <option value="high" ${positionLearning.focusRange === "high" ? "selected" : ""}>High frets</option>
+              <option value="full" ${positionLearning.focusRange === "full" ? "selected" : ""}>Full neck</option>
+            </select>
+          </label>
+        </div>
+        <div class="button-row position-toggle-row" role="group" aria-label="Position display options">
+          <button type="button" data-toggle="showOnlyPosition" aria-pressed="${positionLearning.showOnlyPosition}">Show only this position</button>
+          <button type="button" data-toggle="showRoots" aria-pressed="${positionLearning.showRoots}">Show roots</button>
+          <button type="button" data-toggle="showIntervals" aria-pressed="${positionLearning.showIntervals}">Show intervals</button>
+        </div>
+        <div class="explanation-grid position-explanation">
+          <div class="summary-block">
+            <span>${escapeHtml(summary.title)}</span>
+            <p>${escapeHtml(system.description)} ${escapeHtml(active.description)}</p>
+          </div>
+          <div class="summary-block">
+            <span>Try this</span>
+            <p>${escapeHtml(active.tryThis)}</p>
+          </div>
+          <div class="summary-block wide">
+            <span>Formula and focus</span>
+            <p>${escapeHtml(summary.detail)}. ${escapeHtml(active.usage)}</p>
+          </div>
+        </div>
+      </section>
+    `;
+    this.querySelectorAll("select").forEach((select) => {
+      select.addEventListener("change", (event) => {
+        const next = { ...store.state.positionLearning };
+        if (event.target.name === "positionRoot") next.rootNote = event.target.value;
+        if (event.target.name === "positionSystem") next.system = event.target.value;
+        if (event.target.name === "positionTonality") next.tonality = event.target.value;
+        if (event.target.name === "positionShape") next.selectedShape = event.target.value;
+        if (event.target.name === "positionBox") next.selectedBox = event.target.value;
+        if (event.target.name === "positionFocusRange") next.focusRange = event.target.value;
+        this.emit("app-update", { positionLearning: next });
+      });
+    });
+    this.querySelectorAll("[data-toggle]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const key = button.dataset.toggle;
+        this.emit("app-update", { positionLearning: { ...store.state.positionLearning, [key]: !store.state.positionLearning[key] } });
+      });
+    });
+  }
+}
+
 class QuizPanel extends BaseElement {
   render() {
     const { mode, accidental, quiz, circleKey } = store.state;
@@ -1532,7 +1908,8 @@ class FretboardView extends BaseElement {
     const tuning = store.tuning;
     const rows = generateFretboardMatrix(tuning.strings, state.frets).slice().reverse();
     const visible = getVisibleNotes(state);
-    const subtitle = getModeLabel(state);
+    const subtitle = getModeLabel(state, tuning);
+    const positionSummary = state.mode === "positions" ? getPositionSummary(state, tuning) : null;
     const frets = Array.from({ length: state.frets }, (_, index) => index + 1);
     this.innerHTML = `
       <div class="fretboard-card">
@@ -1542,6 +1919,7 @@ class FretboardView extends BaseElement {
             <span>${tuning.strings.length} strings, ${state.frets} frets</span>
           </div>
           <span>${escapeHtml(subtitle)}</span>
+          ${positionSummary ? `<span>${escapeHtml(positionSummary.detail)}</span>` : ""}
         </div>
         <div class="fretboard-scroll" tabindex="0" aria-label="Scrollable fretboard">
           <div class="fretboard" style="--fret-count: ${state.frets}; --fret-columns: ${state.frets}; --string-count: ${tuning.strings.length};">
@@ -1553,7 +1931,7 @@ class FretboardView extends BaseElement {
               <div class="string-name">${escapeHtml(displayNote(row.openNote, state.accidental))}</div>
               ${row.frets
                 .slice(1)
-                .map((pos) => this.renderPosition(pos, visible, state))
+                .map((pos) => this.renderPosition(pos, visible, state, tuning))
                 .join("")}
             `,
               )
@@ -1569,20 +1947,37 @@ class FretboardView extends BaseElement {
     });
   }
 
-  renderPosition(pos, visible, state) {
+  renderPosition(pos, visible, state, tuning) {
     const key = `${pos.stringIndex}:${pos.fret}`;
     const quiz = state.mode === "quiz" ? state.quiz : null;
-    const isVisible = state.mode === "all" || visible.has(pos.note) || state.mode === "quiz";
+    const positionMarker = state.mode === "positions" ? getPositionMarker(state.positionLearning, pos.note, pos.stringIndex, pos.fret, tuning, state.frets) : null;
+    const isPositionVisible = positionMarker?.inSystem && (positionMarker.inRange || !state.positionLearning.showOnlyPosition);
+    const isVisible = state.mode === "positions" ? isPositionVisible : state.mode === "all" || visible.has(pos.note) || state.mode === "quiz";
     const progressionFocus = state.mode === "progression" ? getProgressionContext(state.progressionBuilder).focusedChord : null;
     const focusedRoot = state.mode === "helper" ? state.chordHelper.focusChord?.root : state.mode === "circle" ? state.circleFocusChord?.root : progressionFocus?.root;
-    const isRoot = ((state.mode === "scales" || state.mode === "chords") && pos.note === state.rootNote) || (focusedRoot && pos.note === focusedRoot);
+    const isRoot =
+      (state.mode === "positions" && state.positionLearning.showRoots && positionMarker?.root) ||
+      ((state.mode === "scales" || state.mode === "chords") && pos.note === state.rootNote) ||
+      (focusedRoot && pos.note === focusedRoot);
     const selected = quiz?.selected.includes(key);
     const correctAnswer = quiz && pos.note === quiz.questionNote;
     const completed = quiz?.completed;
-    const classes = [!isVisible ? "empty" : "", pos.fret === 0 ? "open" : ""].filter(Boolean).join(" ");
+    const classes = [
+      !isVisible ? "empty" : "",
+      pos.fret === 0 ? "open" : "",
+      positionMarker?.inRange ? "position-in-range" : "",
+      positionMarker?.inSystem && !positionMarker.inRange ? "position-out-of-range" : "",
+      positionMarker?.boundary ? "position-boundary" : "",
+      state.mode === "positions" && !positionMarker?.inSystem ? "position-muted" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     const buttonClasses = [
       state.mode === "quiz" && !selected ? "hidden-note" : "",
       isRoot ? "root" : "",
+      state.mode === "positions" && isRoot ? "position-root" : "",
+      state.mode === "positions" && state.positionLearning.showIntervals && positionMarker?.inSystem ? "position-interval" : "",
+      state.mode === "positions" && positionMarker?.inSystem && !positionMarker.inRange ? "position-muted" : "",
       selected ? "selected" : "",
       selected && correctAnswer ? "correct" : "",
       selected && !correctAnswer ? "incorrect" : "",
@@ -1590,10 +1985,19 @@ class FretboardView extends BaseElement {
     ]
       .filter(Boolean)
       .join(" ");
-    const label = state.mode === "quiz" && !selected ? "" : displayNote(pos.note, state.accidental);
+    const label =
+      state.mode === "positions" && state.positionLearning.showIntervals && positionMarker?.interval
+        ? positionMarker.interval
+        : state.mode === "quiz" && !selected
+          ? ""
+          : displayNote(pos.note, state.accidental);
+    const ariaLabel =
+      state.mode === "positions" && positionMarker?.interval
+        ? `String ${pos.stringIndex + 1}, fret ${pos.fret}, ${displayNote(pos.note, state.accidental)}, interval ${positionMarker.interval}`
+        : `String ${pos.stringIndex + 1}, fret ${pos.fret}, ${displayNote(pos.note, state.accidental)}`;
     return `
       <div class="position ${classes}" style="--note-color: ${NOTE_COLORS[pos.note]}">
-        <button type="button" class="${buttonClasses}" data-position="${key}" aria-label="String ${pos.stringIndex + 1}, fret ${pos.fret}, ${escapeHtml(displayNote(pos.note, state.accidental))}" ${state.mode === "quiz" && quiz?.active ? "" : state.mode === "quiz" ? "disabled" : ""}>${escapeHtml(label)}</button>
+        <button type="button" class="${buttonClasses}" data-position="${key}" aria-label="${escapeHtml(ariaLabel)}" ${state.mode === "quiz" && quiz?.active ? "" : state.mode === "quiz" ? "disabled" : ""}>${escapeHtml(label)}</button>
       </div>
     `;
   }
@@ -1603,6 +2007,7 @@ function getVisibleNotes(state) {
   if (state.mode === "notes") return new Set(state.selectedNotes);
   if (state.mode === "scales") return new Set(notesFromPattern(state.rootNote, SCALES[state.selectedScale]));
   if (state.mode === "chords") return new Set(notesFromPattern(state.rootNote, CHORDS[state.selectedChord]));
+  if (state.mode === "positions") return new Set(getPositionNotes(state.positionLearning));
   if (state.mode === "helper" && state.chordHelper.focusChord) {
     const { root, type } = state.chordHelper.focusChord;
     return new Set(notesFromPattern(root, CHORDS[type] || CHORDS.Major));
@@ -1618,7 +2023,7 @@ function getVisibleNotes(state) {
   return new Set(NOTES);
 }
 
-function getModeLabel(state) {
+function getModeLabel(state, tuning = store.tuning) {
   if (state.mode === "notes") return `Showing ${state.selectedNotes.map((note) => displayNote(note, state.accidental)).join(", ")}`;
   if (state.mode === "scales") return `${displayNote(state.rootNote, state.accidental)} ${state.selectedScale}`;
   if (state.mode === "chords") return `${displayNote(state.rootNote, state.accidental)} ${state.selectedChord}`;
@@ -1632,6 +2037,7 @@ function getModeLabel(state) {
     const tones = notesFromPattern(focusedChord.root, CHORDS[focusedChord.type] || CHORDS.Major).map((note) => displayNote(note, accidental)).join(" ");
     return `${key.major} ${state.progressionBuilder.tonality} progression \u00b7 ${focusedNumeral} = ${focusedChord.label}. Chord tones: ${tones}`;
   }
+  if (state.mode === "positions") return getPositionSummary(state, tuning).title;
   if (state.mode === "quiz") return state.quiz.active ? `Find ${displayNote(state.quiz.questionNote, state.accidental)}` : "Quiz stopped";
   return "All notes";
 }
@@ -1741,4 +2147,5 @@ customElements.define("chord-panel", ChordPanel);
 customElements.define("circle-of-fifths-panel", CircleOfFifthsPanel);
 customElements.define("chord-helper-panel", ChordHelperPanel);
 customElements.define("progression-builder-panel", ProgressionBuilderPanel);
+customElements.define("position-panel", PositionPanel);
 customElements.define("quiz-panel", QuizPanel);
