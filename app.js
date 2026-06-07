@@ -1538,8 +1538,6 @@ class ChordPanel extends BaseElement {
       this.innerHTML = "";
       return;
     }
-    const key = getCircleKeyData(state.circleKey);
-    const diatonic = getDiatonicChords(key);
     this.innerHTML = `
       <section class="panel">
         <h2>Chord</h2>
@@ -1552,12 +1550,6 @@ class ChordPanel extends BaseElement {
               .map((name) => `<option value="${escapeHtml(name)}" ${name === state.selectedChord ? "selected" : ""}>${escapeHtml(name)}</option>`)
               .join("")}</select>
           </label>
-        </div>
-        <div class="helper-list" aria-label="Chords in selected key">
-          <strong>${escapeHtml(key.major)} major chords</strong>
-          <div class="chip-row">
-            ${diatonic.map((item) => `<span class="info-chip">${escapeHtml(item.degree)}: ${escapeHtml(item.chord)}</span>`).join("")}
-          </div>
         </div>
       </section>
     `;
