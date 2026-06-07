@@ -16,6 +16,7 @@ The app is local-first and runs entirely in the browser using plain HTML, modern
 - Specific-note highlighting
 - Scale highlighting with root emphasis
 - Chord-tone highlighting with root emphasis
+- Chord shape identifier for clicked fretboard shapes, open strings, and muted strings
 - Position mode for CAGED shapes, pentatonic boxes, scale positions, and focused fret ranges
 - Interval labels for position-focused fretboard learning
 - Interactive circle of fifths with key signatures, relative minors, diatonic chords, and related-key context
@@ -63,7 +64,7 @@ No build step, package install, CDN, or server-side code is required.
 
 ## Data Storage
 
-User preferences, custom tunings, saved progressions, and quiz stats are stored in browser `localStorage` under:
+User preferences, custom tunings, saved progressions, chord identifier shapes, and quiz stats are stored in browser `localStorage` under:
 
 ```text
 axe:v1

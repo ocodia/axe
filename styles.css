@@ -236,9 +236,9 @@ label {
 
 .segmented {
   display: grid;
-  grid-template-columns: repeat(9, minmax(0, 1fr));
+  grid-template-columns: repeat(10, minmax(0, 1fr));
   gap: 0.35rem;
-  width: min(880px, 100%);
+  width: min(980px, 100%);
 }
 
 .segmented button {
@@ -249,6 +249,7 @@ label {
 note-filter,
 scale-panel,
 chord-panel,
+chord-identifier-panel,
 circle-of-fifths-panel,
 chord-helper-panel,
 progression-builder-panel,
@@ -376,6 +377,12 @@ fretboard-view,
   border-right: 1px solid var(--border);
 }
 
+.string-name.open-selected {
+  background: color-mix(in srgb, var(--accent), var(--surface) 78%);
+  color: var(--text);
+  box-shadow: inset -4px 0 0 var(--accent);
+}
+
 .position {
   min-width: 42px;
   min-height: 3.05rem;
@@ -457,6 +464,13 @@ fretboard-view,
   transform: scale(1.08);
   outline: 3px solid var(--accent);
   outline-offset: 2px;
+}
+
+.position button.identifier-selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  text-shadow: none;
 }
 
 .position button.correct {
@@ -744,6 +758,95 @@ fretboard-view,
 
 .position-panel {
   grid-column: 1 / -1;
+}
+
+.chord-identifier-panel {
+  grid-column: 1 / -1;
+}
+
+.identifier-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.4fr);
+  gap: 0.75rem;
+}
+
+.identifier-string-list,
+.identifier-results,
+.identifier-facts,
+.identifier-alternatives,
+.identifier-saved {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.identifier-string-row {
+  display: grid;
+  grid-template-columns: 4.8rem 2.4rem minmax(3.6rem, auto) minmax(3.6rem, auto) minmax(4.8rem, 1fr);
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 0.45rem;
+}
+
+.identifier-string-row span,
+.identifier-string-row em,
+.identifier-alternatives p {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.identifier-string-row strong {
+  text-align: center;
+}
+
+.identifier-string-row em {
+  font-style: normal;
+  font-weight: 800;
+}
+
+.identifier-string-row button {
+  min-height: 2.1rem;
+  padding-inline: 0.45rem;
+}
+
+.identifier-string-row button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.identifier-facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.identifier-alternatives {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 0.55rem;
+}
+
+.identifier-alternatives strong {
+  font-size: 0.85rem;
+}
+
+.identifier-alternatives ol,
+.identifier-alternatives p {
+  margin: 0.35rem 0 0;
+}
+
+.identifier-alternatives ol {
+  padding-left: 1.25rem;
+}
+
+.identifier-actions {
+  margin-top: 0.75rem;
+}
+
+.identifier-saved > strong {
+  font-size: 0.85rem;
 }
 
 .position-controls {
@@ -1087,6 +1190,8 @@ fretboard-view,
 
   .circle-layout,
   .summary-grid,
+  .identifier-layout,
+  .identifier-facts,
   .helper-controls,
   .position-controls,
   .function-strip,
@@ -1098,6 +1203,15 @@ fretboard-view,
   .saved-progression {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .identifier-string-row {
+    grid-template-columns: 1fr 2.4rem;
+  }
+
+  .identifier-string-row button,
+  .identifier-string-row em {
+    grid-column: span 1;
   }
 
   .circle-key .minor-label {

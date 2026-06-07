@@ -3,7 +3,7 @@ const FLAT_DISPLAY = { "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb
 const NOTE_ALIASES = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#", "E#": "F", "B#": "C", Cb: "B", Fb: "E" };
 const STORAGE_KEY = "axe:v1";
 const FRET_OPTIONS = [12, 15, 17, 20, 22, 24];
-const MODES = ["all", "notes", "scales", "chords", "circle", "helper", "progression", "positions", "quiz"];
+const MODES = ["all", "notes", "scales", "chords", "identifier", "circle", "helper", "progression", "positions", "quiz"];
 const MARKER_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
 const DOUBLE_MARKERS = new Set([12, 24]);
 const NOTE_COLORS = {
@@ -186,6 +186,73 @@ const CHORDS = {
   Sus2: [0, 2, 7],
   Sus4: [0, 5, 7],
   "Power Chord": [0, 7],
+};
+
+const CHORD_FORMULAS = {
+  "5": [0, 7],
+  major: [0, 4, 7],
+  minor: [0, 3, 7],
+  dim: [0, 3, 6],
+  aug: [0, 4, 8],
+  sus2: [0, 2, 7],
+  sus4: [0, 5, 7],
+  "6": [0, 4, 7, 9],
+  m6: [0, 3, 7, 9],
+  "7": [0, 4, 7, 10],
+  maj7: [0, 4, 7, 11],
+  m7: [0, 3, 7, 10],
+  mMaj7: [0, 3, 7, 11],
+  dim7: [0, 3, 6, 9],
+  m7b5: [0, 3, 6, 10],
+  add9: [0, 4, 7, 14],
+  madd9: [0, 3, 7, 14],
+  "9": [0, 4, 7, 10, 14],
+  maj9: [0, 4, 7, 11, 14],
+  m9: [0, 3, 7, 10, 14],
+  "11": [0, 4, 7, 10, 14, 17],
+  "13": [0, 4, 7, 10, 14, 21],
+};
+
+const NORMALIZED_CHORD_FORMULAS = Object.fromEntries(
+  Object.entries(CHORD_FORMULAS).map(([name, intervals]) => [name, [...new Set(intervals.map((interval) => ((interval % 12) + 12) % 12))].sort((a, b) => a - b)]),
+);
+const CHORD_FORMULA_COMPLEXITY = {
+  "5": 1,
+  major: 2,
+  minor: 2,
+  dim: 2,
+  aug: 2,
+  sus2: 2,
+  sus4: 2,
+  "6": 3,
+  m6: 3,
+  "7": 3,
+  maj7: 3,
+  m7: 3,
+  mMaj7: 4,
+  dim7: 3,
+  m7b5: 3,
+  add9: 4,
+  madd9: 4,
+  "9": 5,
+  maj9: 5,
+  m9: 5,
+  "11": 6,
+  "13": 6,
+};
+const INTERVAL_LABELS = {
+  0: "1",
+  1: "b2",
+  2: "2",
+  3: "b3",
+  4: "3",
+  5: "4",
+  6: "b5",
+  7: "5",
+  8: "#5",
+  9: "6",
+  10: "b7",
+  11: "7",
 };
 
 const POSITION_SYSTEMS = {
@@ -844,6 +911,193 @@ function nextChordSuggestions(builder) {
   return direct.filter((token) => supported.includes(token));
 }
 
+function sanitizeChordIdentifier(identifier = {}, tuning, frets) {
+  const incoming = Array.isArray(identifier.selectedShape) ? identifier.selectedShape : [];
+  const byString = new Map(incoming.map((item) => [Number(item.stringIndex), item]));
+  const selectedShape = tuning.strings.map((_, stringIndex) => {
+    const item = byString.get(stringIndex);
+    const muted = item ? Boolean(item.muted) : true;
+    const fret = muted ? null : Math.max(0, Math.min(frets, Number(item.fret) || 0));
+    return { stringIndex, fret, muted };
+  });
+  const savedShapes = Array.isArray(identifier.savedShapes)
+    ? identifier.savedShapes
+        .filter((item) => item && Array.isArray(item.strings))
+        .map((item) => ({
+          id: item.id || uid(),
+          name: item.name || "Saved chord shape",
+          tuningId: item.tuningId || tuning.id,
+          strings: item.strings
+            .filter((entry) => Number.isInteger(Number(entry.stringIndex)))
+            .map((entry) => ({
+              stringIndex: Number(entry.stringIndex),
+              fret: entry.muted ? null : Math.max(0, Number(entry.fret) || 0),
+              muted: Boolean(entry.muted),
+            })),
+          createdAt: item.createdAt || new Date().toISOString(),
+        }))
+    : [];
+  return {
+    selectedShape,
+    showLabels: identifier.showLabels === undefined ? true : Boolean(identifier.showLabels),
+    savedShapes,
+  };
+}
+
+function getSelectedNotes(shape, tuning) {
+  return shape
+    .filter((string) => !string.muted && string.fret !== null)
+    .sort((a, b) => a.stringIndex - b.stringIndex)
+    .map((string) => ({
+      stringIndex: string.stringIndex,
+      fret: string.fret,
+      note: noteAt(tuning.strings[string.stringIndex] || "C", string.fret),
+    }));
+}
+
+function getUniquePitchClasses(notes) {
+  const seen = new Set();
+  return notes
+    .map((item) => normalizeNote(item.note || item))
+    .filter((note) => {
+      if (seen.has(note)) return false;
+      seen.add(note);
+      return true;
+    });
+}
+
+function getIntervalsFromRoot(pitchClasses, root) {
+  const rootIndex = NOTES.indexOf(normalizeNote(root));
+  return pitchClasses
+    .map((note) => (NOTES.indexOf(normalizeNote(note)) - rootIndex + 12) % 12)
+    .sort((a, b) => a - b);
+}
+
+function sameIntervalSet(left, right) {
+  return left.length === right.length && left.every((interval, index) => interval === right[index]);
+}
+
+function matchChordFormulas(intervals) {
+  return Object.entries(NORMALIZED_CHORD_FORMULAS)
+    .map(([name, formula]) => {
+      const selected = new Set(intervals);
+      const formulaSet = new Set(formula);
+      const shared = formula.filter((interval) => selected.has(interval));
+      const missing = formula.filter((interval) => !selected.has(interval));
+      const extra = intervals.filter((interval) => !formulaSet.has(interval));
+      return {
+        formulaName: name,
+        formula,
+        exact: sameIntervalSet(intervals, formula),
+        shared,
+        missing,
+        extra,
+      };
+    })
+    .filter((match) => match.shared.length);
+}
+
+function formatChordName(root, formulaName, bassNote, accidental = "sharps") {
+  const suffix =
+    formulaName === "major"
+      ? ""
+      : formulaName === "minor"
+        ? "m"
+        : formulaName === "madd9"
+          ? "madd9"
+          : formulaName;
+  const rootLabel = displayNote(root, accidental);
+  const base = `${rootLabel}${suffix}`;
+  return bassNote && normalizeNote(bassNote) !== normalizeNote(root) ? `${base}/${displayNote(bassNote, accidental)}` : base;
+}
+
+function rankChordMatches(matches, selectedNotes, bassNote) {
+  const rootNotes = new Set(selectedNotes.map((item) => item.note));
+  return matches.sort((a, b) => {
+    if (a.exact !== b.exact) return a.exact ? -1 : 1;
+    if (a.extra.length !== b.extra.length) return a.extra.length - b.extra.length;
+    if (a.missing.length !== b.missing.length) return a.missing.length - b.missing.length;
+    const aRootPresent = rootNotes.has(a.root);
+    const bRootPresent = rootNotes.has(b.root);
+    if (aRootPresent !== bRootPresent) return aRootPresent ? -1 : 1;
+    const aBassRoot = normalizeNote(a.root) === normalizeNote(bassNote);
+    const bBassRoot = normalizeNote(b.root) === normalizeNote(bassNote);
+    if (aBassRoot !== bBassRoot) return aBassRoot ? -1 : 1;
+    const aComplexity = CHORD_FORMULA_COMPLEXITY[a.formulaName] || 9;
+    const bComplexity = CHORD_FORMULA_COMPLEXITY[b.formulaName] || 9;
+    if (aComplexity !== bComplexity) return aComplexity - bComplexity;
+    return a.formula.length - b.formula.length;
+  });
+}
+
+function chordTonesForMatch(match, accidental = "sharps") {
+  return match.formula.map((interval) => displayNote(transpose(match.root, interval), accidental));
+}
+
+function intervalLabelsForMatch(match) {
+  return match.formula.map((interval) => INTERVAL_LABELS[interval] || String(interval));
+}
+
+function detectChord(shape, tuning, accidental = "sharps") {
+  const selectedNotes = getSelectedNotes(shape, tuning);
+  const pitchClasses = getUniquePitchClasses(selectedNotes);
+  const bassNote = selectedNotes[0]?.note || null;
+  if (!pitchClasses.length) {
+    return {
+      selectedNotes,
+      pitchClasses,
+      bassNote,
+      exact: false,
+      best: null,
+      alternatives: [],
+      title: "Select notes to identify a chord",
+      explanation: "Choose open strings or fretted notes to build a shape.",
+    };
+  }
+  const candidates = pitchClasses.flatMap((root) => {
+    const intervals = getIntervalsFromRoot(pitchClasses, root);
+    return matchChordFormulas(intervals).map((match) => ({
+      ...match,
+      root,
+      intervals,
+      label: formatChordName(root, match.formulaName, bassNote, accidental),
+    }));
+  });
+  const ranked = rankChordMatches(candidates, selectedNotes, bassNote);
+  const exact = ranked.filter((match) => match.exact);
+  const usable = exact.length ? exact : ranked.slice(0, 5);
+  const best = usable[0] || null;
+  if (!best) {
+    return {
+      selectedNotes,
+      pitchClasses,
+      bassNote,
+      exact: false,
+      best: null,
+      alternatives: [],
+      title: "No exact match found",
+      explanation: "Try adding or removing a note.",
+    };
+  }
+  const alternatives = usable.filter((match) => match !== best).slice(0, 5);
+  const bassText = bassNote ? displayNote(bassNote, accidental) : "";
+  const explanation = best.exact
+    ? normalizeNote(best.root) === normalizeNote(bassNote)
+      ? `This is a ${formatChordName(best.root, best.formulaName, null, accidental)} chord with ${bassText} as the lowest sounding note.`
+      : `This is a ${formatChordName(best.root, best.formulaName, null, accidental)} chord with ${bassText} as the lowest sounding note.`
+    : `No exact match found. Closest matches share ${best.shared.length} chord tone${best.shared.length === 1 ? "" : "s"} with your shape.`;
+  return {
+    selectedNotes,
+    pitchClasses,
+    bassNote,
+    exact: Boolean(exact.length),
+    best,
+    alternatives,
+    title: exact.length ? best.label : "No exact match found",
+    explanation,
+  };
+}
+
 function copyTextToClipboard(text) {
   if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text);
   const area = document.createElement("textarea");
@@ -871,6 +1125,11 @@ const defaultState = {
   selectedScale: "Major",
   selectedChord: "Major",
   selectedNotes: ["C"],
+  chordIdentifier: {
+    selectedShape: [],
+    showLabels: true,
+    savedShapes: [],
+  },
   chordHelper: {
     key: "C",
     tonality: "major",
@@ -940,6 +1199,7 @@ class Store extends EventTarget {
       selectedNotes: Array.isArray(state.selectedNotes) && state.selectedNotes.length ? [...new Set(state.selectedNotes.map(normalizeNote))] : ["C"],
       selectedScale: SCALES[state.selectedScale] ? state.selectedScale : "Major",
       selectedChord: CHORDS[state.selectedChord] ? state.selectedChord : "Major",
+      chordIdentifier: sanitizeChordIdentifier(state.chordIdentifier, tuning, clampFrets(state.frets || tuning.defaultFrets || 22)),
       chordHelper: {
         ...defaultState.chordHelper,
         ...(state.chordHelper || {}),
@@ -1029,6 +1289,7 @@ class FretboardApp extends BaseElement {
       }));
     });
     this.addEventListener("quiz-action", (event) => handleQuizAction(event.detail.action, event.detail.position));
+    this.addEventListener("identifier-action", (event) => handleIdentifierAction(event.detail.action, event.detail));
   }
 
   render() {
@@ -1046,6 +1307,7 @@ class FretboardApp extends BaseElement {
             <note-filter></note-filter>
             <scale-panel></scale-panel>
             <chord-panel></chord-panel>
+            <chord-identifier-panel></chord-identifier-panel>
             <circle-of-fifths-panel></circle-of-fifths-panel>
             <chord-helper-panel></chord-helper-panel>
             <progression-builder-panel></progression-builder-panel>
@@ -1198,6 +1460,7 @@ class ModeSelector extends BaseElement {
       ["notes", "Notes"],
       ["scales", "Scales"],
       ["chords", "Chords"],
+      ["identifier", "Identifier"],
       ["circle", "Circle"],
       ["helper", "Helper"],
       ["progression", "Progression"],
@@ -1300,6 +1563,137 @@ class ChordPanel extends BaseElement {
     `;
     this.querySelector("[name='root']").addEventListener("change", (event) => this.emit("app-update", { rootNote: event.target.value }));
     this.querySelector("[name='chord']").addEventListener("change", (event) => this.emit("app-update", { selectedChord: event.target.value }));
+  }
+}
+
+class ChordIdentifierPanel extends BaseElement {
+  render() {
+    const state = store.state;
+    if (state.mode !== "identifier") {
+      this.innerHTML = "";
+      return;
+    }
+    const tuning = store.tuning;
+    const identifier = state.chordIdentifier;
+    const detection = detectChord(identifier.selectedShape, tuning, state.accidental);
+    const selectedNoteLabels = detection.selectedNotes.map((item) => displayNote(item.note, state.accidental));
+    const best = detection.best;
+    this.innerHTML = `
+      <section class="panel chord-identifier-panel">
+        <h2>Chord Identifier</h2>
+        <div class="identifier-layout">
+          <div class="identifier-string-list" aria-label="String controls">
+            ${identifier.selectedShape
+              .map((string) => {
+                const openNote = tuning.strings[string.stringIndex] || "C";
+                const selectedNote = string.muted ? "Muted" : displayNote(noteAt(openNote, string.fret), state.accidental);
+                return `
+                  <div class="identifier-string-row">
+                    <span>String ${string.stringIndex + 1}</span>
+                    <strong>${escapeHtml(displayNote(openNote, state.accidental))}</strong>
+                    <button type="button" data-identifier-open="${string.stringIndex}" aria-pressed="${!string.muted && string.fret === 0}">Open</button>
+                    <button type="button" data-identifier-mute="${string.stringIndex}" aria-pressed="${string.muted}">Mute</button>
+                    <em>${escapeHtml(selectedNote)}</em>
+                  </div>
+                `;
+              })
+              .join("")}
+          </div>
+          <div class="identifier-results">
+            <div class="summary-block">
+              <span>${detection.exact ? "Best match" : "Result"}</span>
+              <strong>${escapeHtml(detection.title)}</strong>
+              <p>${escapeHtml(detection.explanation)}</p>
+            </div>
+            <div class="identifier-facts">
+              <div class="summary-block">
+                <span>Notes</span>
+                <strong>${selectedNoteLabels.length ? escapeHtml(selectedNoteLabels.join(", ")) : "None"}</strong>
+              </div>
+              <div class="summary-block">
+                <span>Bass note</span>
+                <strong>${detection.bassNote ? escapeHtml(displayNote(detection.bassNote, state.accidental)) : "None"}</strong>
+              </div>
+              <div class="summary-block">
+                <span>Chord tones</span>
+                <strong>${best ? escapeHtml(chordTonesForMatch(best, state.accidental).join(", ")) : "None"}</strong>
+              </div>
+              <div class="summary-block">
+                <span>Intervals</span>
+                <strong>${best ? escapeHtml(intervalLabelsForMatch(best).join(", ")) : "None"}</strong>
+              </div>
+            </div>
+            ${
+              detection.alternatives.length
+                ? `
+                  <div class="identifier-alternatives">
+                    <strong>Possible matches</strong>
+                    <ol>
+                      ${detection.alternatives.map((match) => `<li>${escapeHtml(match.label)}</li>`).join("")}
+                    </ol>
+                  </div>
+                `
+                : ""
+            }
+            ${
+              !detection.exact && best
+                ? `
+                  <div class="identifier-alternatives">
+                    <strong>Closest possibility detail</strong>
+                    <p>Missing: ${escapeHtml(best.missing.map((interval) => INTERVAL_LABELS[interval] || String(interval)).join(", ") || "none")}. Extra: ${escapeHtml(best.extra.map((interval) => INTERVAL_LABELS[interval] || String(interval)).join(", ") || "none")}.</p>
+                  </div>
+                `
+                : ""
+            }
+          </div>
+        </div>
+        <div class="builder-actions identifier-actions">
+          <button type="button" data-action="toggle-labels" aria-pressed="${identifier.showLabels}">Show labels</button>
+          <button type="button" data-action="clear-shape">Clear shape</button>
+          <button type="button" class="primary" data-action="save-shape" ${detection.selectedNotes.length ? "" : "disabled"}>Save shape</button>
+        </div>
+        <div class="saved-progressions identifier-saved">
+          <strong>Saved shapes</strong>
+          ${
+            identifier.savedShapes.length
+              ? `<div class="saved-list">
+                  ${identifier.savedShapes
+                    .map(
+                      (shape) => `
+                        <div class="saved-progression">
+                          <div>
+                            <b>${escapeHtml(shape.name)}</b>
+                            <span>${escapeHtml(shape.tuningId === tuning.id ? labelForTuning(tuning) : shape.tuningId)}</span>
+                          </div>
+                          <div class="button-row">
+                            <button type="button" data-load-shape="${escapeHtml(shape.id)}">Load</button>
+                            <button type="button" class="danger" data-delete-shape="${escapeHtml(shape.id)}">Delete</button>
+                          </div>
+                        </div>
+                      `,
+                    )
+                    .join("")}
+                </div>`
+              : `<p>No saved shapes yet.</p>`
+          }
+        </div>
+      </section>
+    `;
+    this.querySelectorAll("[data-identifier-open]").forEach((button) => {
+      button.addEventListener("click", () => this.emit("identifier-action", { action: "open", stringIndex: Number(button.dataset.identifierOpen) }));
+    });
+    this.querySelectorAll("[data-identifier-mute]").forEach((button) => {
+      button.addEventListener("click", () => this.emit("identifier-action", { action: "mute", stringIndex: Number(button.dataset.identifierMute) }));
+    });
+    this.querySelector("[data-action='toggle-labels']").addEventListener("click", () => this.emit("identifier-action", { action: "toggle-labels" }));
+    this.querySelector("[data-action='clear-shape']").addEventListener("click", () => this.emit("identifier-action", { action: "clear" }));
+    this.querySelector("[data-action='save-shape']").addEventListener("click", () => this.emit("identifier-action", { action: "save" }));
+    this.querySelectorAll("[data-load-shape]").forEach((button) => {
+      button.addEventListener("click", () => this.emit("identifier-action", { action: "load", id: button.dataset.loadShape }));
+    });
+    this.querySelectorAll("[data-delete-shape]").forEach((button) => {
+      button.addEventListener("click", () => this.emit("identifier-action", { action: "delete", id: button.dataset.deleteShape }));
+    });
   }
 }
 
@@ -1927,13 +2321,17 @@ class FretboardView extends BaseElement {
             ${frets.map((fret) => `<div class="fret-number">${fret}</div>`).join("")}
             ${rows
               .map(
-                (row) => `
-              <div class="string-name">${escapeHtml(displayNote(row.openNote, state.accidental))}</div>
+                (row) => {
+                  const identifierString = state.mode === "identifier" ? state.chordIdentifier.selectedShape.find((string) => string.stringIndex === row.stringIndex) : null;
+                  const openSelected = identifierString && !identifierString.muted && identifierString.fret === 0;
+                  return `
+              <div class="string-name ${openSelected ? "open-selected" : ""}">${escapeHtml(displayNote(row.openNote, state.accidental))}</div>
               ${row.frets
                 .slice(1)
                 .map((pos) => this.renderPosition(pos, visible, state, tuning))
                 .join("")}
-            `,
+            `;
+                },
               )
               .join("")}
             <span></span>
@@ -1943,23 +2341,36 @@ class FretboardView extends BaseElement {
       </div>
     `;
     this.querySelectorAll("[data-position]").forEach((button) => {
-      button.addEventListener("click", () => this.emit("quiz-action", { action: "select", position: button.dataset.position }));
+      button.addEventListener("click", () => {
+        if (store.state.mode === "identifier") {
+          this.emit("identifier-action", { action: "select", position: button.dataset.position });
+          return;
+        }
+        this.emit("quiz-action", { action: "select", position: button.dataset.position });
+      });
     });
   }
 
   renderPosition(pos, visible, state, tuning) {
     const key = `${pos.stringIndex}:${pos.fret}`;
     const quiz = state.mode === "quiz" ? state.quiz : null;
+    const identifierString = state.mode === "identifier" ? state.chordIdentifier.selectedShape.find((string) => string.stringIndex === pos.stringIndex) : null;
+    const identifierSelected = identifierString && !identifierString.muted && identifierString.fret === pos.fret;
     const positionMarker = state.mode === "positions" ? getPositionMarker(state.positionLearning, pos.note, pos.stringIndex, pos.fret, tuning, state.frets) : null;
     const isPositionVisible = positionMarker?.inSystem && (positionMarker.inRange || !state.positionLearning.showOnlyPosition);
-    const isVisible = state.mode === "positions" ? isPositionVisible : state.mode === "all" || visible.has(pos.note) || state.mode === "quiz";
+    const isVisible =
+      state.mode === "positions"
+        ? isPositionVisible
+        : state.mode === "identifier"
+          ? true
+          : state.mode === "all" || visible.has(pos.note) || state.mode === "quiz";
     const progressionFocus = state.mode === "progression" ? getProgressionContext(state.progressionBuilder).focusedChord : null;
     const focusedRoot = state.mode === "helper" ? state.chordHelper.focusChord?.root : state.mode === "circle" ? state.circleFocusChord?.root : progressionFocus?.root;
     const isRoot =
       (state.mode === "positions" && state.positionLearning.showRoots && positionMarker?.root) ||
       ((state.mode === "scales" || state.mode === "chords") && pos.note === state.rootNote) ||
       (focusedRoot && pos.note === focusedRoot);
-    const selected = quiz?.selected.includes(key);
+    const selected = state.mode === "identifier" ? identifierSelected : quiz?.selected.includes(key);
     const correctAnswer = quiz && pos.note === quiz.questionNote;
     const completed = quiz?.completed;
     const classes = [
@@ -1982,22 +2393,27 @@ class FretboardView extends BaseElement {
       selected && correctAnswer ? "correct" : "",
       selected && !correctAnswer ? "incorrect" : "",
       completed && !selected && correctAnswer ? "missed" : "",
+      identifierSelected ? "identifier-selected" : "",
     ]
       .filter(Boolean)
       .join(" ");
     const label =
       state.mode === "positions" && state.positionLearning.showIntervals && positionMarker?.interval
         ? positionMarker.interval
+        : state.mode === "identifier" && !state.chordIdentifier.showLabels && !identifierSelected
+          ? ""
         : state.mode === "quiz" && !selected
           ? ""
           : displayNote(pos.note, state.accidental);
     const ariaLabel =
       state.mode === "positions" && positionMarker?.interval
         ? `String ${pos.stringIndex + 1}, fret ${pos.fret}, ${displayNote(pos.note, state.accidental)}, interval ${positionMarker.interval}`
+        : state.mode === "identifier"
+          ? `String ${pos.stringIndex + 1}, fret ${pos.fret}, ${displayNote(pos.note, state.accidental)}${identifierSelected ? ", selected" : ""}`
         : `String ${pos.stringIndex + 1}, fret ${pos.fret}, ${displayNote(pos.note, state.accidental)}`;
     return `
       <div class="position ${classes}" style="--note-color: ${NOTE_COLORS[pos.note]}">
-        <button type="button" class="${buttonClasses}" data-position="${key}" aria-label="${escapeHtml(ariaLabel)}" ${state.mode === "quiz" && quiz?.active ? "" : state.mode === "quiz" ? "disabled" : ""}>${escapeHtml(label)}</button>
+        <button type="button" class="${buttonClasses}" data-position="${key}" aria-label="${escapeHtml(ariaLabel)}" ${state.mode === "quiz" && quiz?.active ? "" : state.mode === "quiz" ? "disabled" : ""} aria-pressed="${state.mode === "identifier" ? Boolean(identifierSelected) : "false"}">${escapeHtml(label)}</button>
       </div>
     `;
   }
@@ -2007,6 +2423,7 @@ function getVisibleNotes(state) {
   if (state.mode === "notes") return new Set(state.selectedNotes);
   if (state.mode === "scales") return new Set(notesFromPattern(state.rootNote, SCALES[state.selectedScale]));
   if (state.mode === "chords") return new Set(notesFromPattern(state.rootNote, CHORDS[state.selectedChord]));
+  if (state.mode === "identifier") return new Set();
   if (state.mode === "positions") return new Set(getPositionNotes(state.positionLearning));
   if (state.mode === "helper" && state.chordHelper.focusChord) {
     const { root, type } = state.chordHelper.focusChord;
@@ -2027,6 +2444,10 @@ function getModeLabel(state, tuning = store.tuning) {
   if (state.mode === "notes") return `Showing ${state.selectedNotes.map((note) => displayNote(note, state.accidental)).join(", ")}`;
   if (state.mode === "scales") return `${displayNote(state.rootNote, state.accidental)} ${state.selectedScale}`;
   if (state.mode === "chords") return `${displayNote(state.rootNote, state.accidental)} ${state.selectedChord}`;
+  if (state.mode === "identifier") {
+    const detection = detectChord(state.chordIdentifier.selectedShape, tuning, state.accidental);
+    return detection.best ? `Identifying ${detection.best.label}` : "Build a chord shape";
+  }
   if (state.mode === "circle") return state.circleFocusChord ? `Showing ${state.circleFocusChord.label}` : `${getCircleKeyData(state.circleKey).major} major context`;
   if (state.mode === "helper") {
     const focus = state.chordHelper.focusChord;
@@ -2122,6 +2543,126 @@ function finishQuiz(state, reason) {
   });
 }
 
+function updateIdentifierShape(state, updater) {
+  const nextShape = state.chordIdentifier.selectedShape.map((string) => ({ ...string }));
+  updater(nextShape);
+  return {
+    ...state.chordIdentifier,
+    selectedShape: nextShape.sort((a, b) => a.stringIndex - b.stringIndex),
+  };
+}
+
+function handleIdentifierAction(action, detail = {}) {
+  const state = store.state;
+  const tuning = store.tuning;
+  if (action === "select" && detail.position) {
+    const [stringValue, fretValue] = String(detail.position).split(":");
+    const stringIndex = Number(stringValue);
+    const fret = Number(fretValue);
+    store.update((current) => ({
+      ...current,
+      chordIdentifier: updateIdentifierShape(current, (shape) => {
+        const target = shape.find((string) => string.stringIndex === stringIndex);
+        if (!target) return;
+        if (!target.muted && target.fret === fret) {
+          target.fret = null;
+          target.muted = true;
+          return;
+        }
+        target.fret = fret;
+        target.muted = false;
+      }),
+    }));
+    return;
+  }
+  if (action === "open") {
+    store.update((current) => ({
+      ...current,
+      chordIdentifier: updateIdentifierShape(current, (shape) => {
+        const target = shape.find((string) => string.stringIndex === detail.stringIndex);
+        if (!target) return;
+        target.fret = 0;
+        target.muted = false;
+      }),
+    }));
+    return;
+  }
+  if (action === "mute") {
+    store.update((current) => ({
+      ...current,
+      chordIdentifier: updateIdentifierShape(current, (shape) => {
+        const target = shape.find((string) => string.stringIndex === detail.stringIndex);
+        if (!target) return;
+        target.fret = null;
+        target.muted = true;
+      }),
+    }));
+    return;
+  }
+  if (action === "clear") {
+    store.update((current) => ({
+      ...current,
+      chordIdentifier: {
+        ...current.chordIdentifier,
+        selectedShape: tuning.strings.map((_, stringIndex) => ({ stringIndex, fret: null, muted: true })),
+      },
+    }));
+    return;
+  }
+  if (action === "toggle-labels") {
+    store.update((current) => ({
+      ...current,
+      chordIdentifier: {
+        ...current.chordIdentifier,
+        showLabels: !current.chordIdentifier.showLabels,
+      },
+    }));
+    return;
+  }
+  if (action === "save") {
+    const detection = detectChord(state.chordIdentifier.selectedShape, tuning, state.accidental);
+    if (!detection.selectedNotes.length) return;
+    const saved = {
+      id: uid(),
+      name: `${detection.best?.label || "Unknown chord"} shape`,
+      tuningId: tuning.id,
+      strings: state.chordIdentifier.selectedShape.map((string) => ({ ...string })),
+      createdAt: new Date().toISOString(),
+    };
+    store.update((current) => ({
+      ...current,
+      chordIdentifier: {
+        ...current.chordIdentifier,
+        savedShapes: [saved, ...current.chordIdentifier.savedShapes].slice(0, 24),
+      },
+    }));
+    return;
+  }
+  if (action === "load") {
+    const saved = state.chordIdentifier.savedShapes.find((shape) => shape.id === detail.id);
+    if (!saved) return;
+    store.update((current) => ({
+      ...current,
+      selectedTuningId: saved.tuningId,
+      mode: "identifier",
+      chordIdentifier: {
+        ...current.chordIdentifier,
+        selectedShape: saved.strings.map((string) => ({ ...string })),
+      },
+    }));
+    return;
+  }
+  if (action === "delete") {
+    store.update((current) => ({
+      ...current,
+      chordIdentifier: {
+        ...current.chordIdentifier,
+        savedShapes: current.chordIdentifier.savedShapes.filter((shape) => shape.id !== detail.id),
+      },
+    }));
+  }
+}
+
 function scoreTextForQuiz(quiz, total, prefix) {
   return `${prefix}. Found ${quiz.guesses.correct}/${total}; incorrect guesses ${quiz.guesses.incorrect}.`;
 }
@@ -2144,6 +2685,7 @@ customElements.define("mode-selector", ModeSelector);
 customElements.define("note-filter", NoteFilter);
 customElements.define("scale-panel", ScalePanel);
 customElements.define("chord-panel", ChordPanel);
+customElements.define("chord-identifier-panel", ChordIdentifierPanel);
 customElements.define("circle-of-fifths-panel", CircleOfFifthsPanel);
 customElements.define("chord-helper-panel", ChordHelperPanel);
 customElements.define("progression-builder-panel", ProgressionBuilderPanel);
