@@ -1335,7 +1335,6 @@ const defaultState = {
     completed: false,
     guesses: { correct: 0, incorrect: 0 },
     scoreText: "",
-    keyAware: false,
     stats: { gamesStarted: 0, gamesCompleted: 0, correctGuesses: 0, incorrectGuesses: 0 },
   },
 };
@@ -1392,7 +1391,6 @@ class Store extends EventTarget {
         selected: Array.isArray(state.quiz?.selected) ? state.quiz.selected : [],
         completed: Boolean(state.quiz?.completed),
         guesses: { ...defaultState.quiz.guesses, ...(state.quiz?.guesses || {}) },
-        keyAware: Boolean(state.quiz?.keyAware),
         stats: { ...defaultState.quiz.stats, ...(state.quiz?.stats || {}) },
       },
     };
@@ -2429,12 +2427,11 @@ class PositionPanel extends BaseElement {
 
 class QuizPanel extends BaseElement {
   render() {
-    const { mode, accidental, quiz, circleKey } = store.state;
+    const { mode, accidental, quiz } = store.state;
     if (mode !== "quiz") {
       this.innerHTML = "";
       return;
     }
-    const key = getCircleKeyData(circleKey);
     const answerTotal = getAnswerKeys(store.state).size;
     const found = quiz.selected.filter((key) => getAnswerKeys(store.state).has(key)).length;
     const buttonLabel = quiz.active ? "Stop quiz" : "Start quiz";
@@ -2442,21 +2439,21 @@ class QuizPanel extends BaseElement {
       <section class="panel">
         <h2>Quiz</h2>
         <div class="quiz-status" aria-live="polite">
-          <strong>${quiz.active ? `Find all ${escapeHtml(displayNote(quiz.questionNote, accidental))} notes` : "Quiz stopped"}</strong>
-          <span class="score">${escapeHtml(quiz.scoreText || (quiz.active ? `${found}/${answerTotal} found. Correct ${quiz.guesses.correct}, incorrect ${quiz.guesses.incorrect}.` : "Press Start quiz when you want a new round."))}</span>
-        </div>
-        <label class="toggle-row">
-          <input type="checkbox" name="keyAware" ${quiz.keyAware ? "checked" : ""}>
-          Ask notes from ${escapeHtml(key.major)} major
-        </label>
-        <div class="button-row" style="margin-top: .75rem;">
-          <button type="button" class="${quiz.active ? "danger" : "primary"}" data-quiz="${quiz.active ? "stop" : "start"}">${buttonLabel}</button>
+          <div class="quiz-status-main">
+            <div>
+              <span class="quiz-label">${quiz.active ? "Find all" : "Quiz"}</span>
+              <strong>${quiz.active ? escapeHtml(displayNote(quiz.questionNote, accidental)) : "Stopped"}</strong>
+            </div>
+            <button type="button" class="${quiz.active ? "danger" : "primary"}" data-quiz="${quiz.active ? "stop" : "start"}">${buttonLabel}</button>
+          </div>
+          <div class="quiz-metrics">
+            <span><b>${found}/${answerTotal}</b> found</span>
+            <span><b>${quiz.guesses.correct}</b> correct</span>
+            <span><b>${quiz.guesses.incorrect}</b> missed</span>
+          </div>
         </div>
       </section>
     `;
-    this.querySelector("[name='keyAware']").addEventListener("change", (event) => {
-      this.emit("app-update", { quiz: { ...store.state.quiz, keyAware: event.target.checked } });
-    });
     this.querySelectorAll("[data-quiz]").forEach((button) => {
       button.addEventListener("click", () => this.emit("quiz-action", { action: button.dataset.quiz }));
     });
@@ -2705,8 +2702,7 @@ function getModeLabel(state, tuning = store.tuning) {
 function handleQuizAction(action, position) {
   const state = store.state;
   if (action === "start") {
-    const questionPool = state.quiz.keyAware ? getCircleKeyData(state.circleKey).scale.map(normalizeNote) : NOTES;
-    const questionNote = questionPool[Math.floor(Math.random() * questionPool.length)];
+    const questionNote = NOTES[Math.floor(Math.random() * NOTES.length)];
     store.update({
       mode: "quiz",
       quiz: {
