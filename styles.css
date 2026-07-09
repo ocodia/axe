@@ -175,16 +175,18 @@ label {
   width: 2rem;
   height: 2rem;
   place-items: center;
-  border-radius: var(--radius);
-  background: var(--accent);
   color: var(--accent-text);
-  font-size: 1rem;
+  font-size: 1.8rem;
   line-height: 1;
 }
 
 .brand-name {
   font-size: 1.1rem;
   letter-spacing: 0;
+}
+
+.brand-name-mobile {
+  display: none;
 }
 
 .top-menu {
@@ -516,7 +518,9 @@ fretboard-view,
 }
 
 .position.position-boundary {
-  box-shadow: inset 3px 0 0 var(--accent), inset -3px 0 0 var(--accent);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    inset -3px 0 0 var(--accent);
 }
 
 .position.position-in-range {
@@ -1214,6 +1218,14 @@ fretboard-view,
     display: inline-flex;
     flex-direction: column;
     gap: 0.25rem;
+  }
+
+  .brand-name-desktop {
+    display: none;
+  }
+
+  .brand-name-mobile {
+    display: inline;
   }
 
   .top-menu {

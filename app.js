@@ -4,6 +4,18 @@ const NOTE_ALIASES = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#", "E#": "
 const STORAGE_KEY = "axe:v1";
 const FRET_OPTIONS = [12, 15, 17, 20, 22, 24];
 const MODES = ["all", "notes", "scales", "chords", "identifier", "circle", "helper", "progression", "positions", "quiz"];
+const MODE_LABELS = {
+  all: "All",
+  notes: "Notes",
+  scales: "Scales",
+  chords: "Chords",
+  identifier: "Identifier",
+  circle: "Circle",
+  helper: "Helper",
+  progression: "Progression",
+  positions: "Positions",
+  quiz: "Quiz",
+};
 const MARKER_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
 const DOUBLE_MARKERS = new Set([12, 24]);
 const NOTE_COLORS = {
@@ -86,26 +98,186 @@ const CHORD_FUNCTION_BY_ROMAN = {
   bVII: "colour/borrowed",
 };
 const CHORD_PROGRESSIONS = [
-  { numerals: ["I", "V", "vi", "IV"], tonalities: ["major"], styles: ["Pop", "Uplifting", "Folk"], complexity: "Simple", description: "Very common pop movement. Strong, familiar, emotional but stable.", scale: "major / relative minor pentatonic", genres: ["pop", "country", "worship"] },
-  { numerals: ["I", "IV", "V"], tonalities: ["major"], styles: ["Rock", "Blues", "Folk", "Uplifting"], complexity: "Simple", description: "Direct and grounded. It moves away from home, builds tension, then resolves clearly.", scale: "major pentatonic / major blues", genres: ["rock", "blues", "folk"] },
-  { numerals: ["I", "vi", "IV", "V"], tonalities: ["major"], styles: ["Pop", "Folk", "Melancholic"], complexity: "Simple", description: "Classic warm progression with a nostalgic turn through the relative minor.", scale: "major / relative minor pentatonic", genres: ["doo-wop", "pop", "folk"] },
-  { numerals: ["vi", "IV", "I", "V"], tonalities: ["major"], styles: ["Pop", "Rock", "Melancholic"], complexity: "Simple", description: "Starts on emotional contrast, then opens into a broad major-key resolution.", scale: "major / relative minor pentatonic", genres: ["pop rock", "indie"] },
-  { numerals: ["I", "V", "IV", "I"], tonalities: ["major"], styles: ["Rock", "Folk"], complexity: "Simple", description: "Plain-spoken and sturdy. The IV before I gives a relaxed, rootsy landing.", scale: "major pentatonic", genres: ["rock", "folk rock"] },
-  { numerals: ["I", "iii", "IV", "V"], tonalities: ["major"], styles: ["Melancholic", "Ambient", "Pop"], complexity: "Medium", description: "Gentler and more wistful. The iii chord shades the tonic before the IV-V lift.", scale: "major", genres: ["ballads", "ambient pop"] },
-  { numerals: ["ii", "V", "I"], tonalities: ["major"], styles: ["Jazz", "Funk"], complexity: "Medium", description: "The standard jazz cadence: setup, tension, resolution.", scale: "major / mixolydian on V", genres: ["jazz", "soul", "funk"] },
-  { numerals: ["I", "IV", "vi", "V"], tonalities: ["major"], styles: ["Pop", "Uplifting"], complexity: "Simple", description: "Bright and forward-moving, with the vi adding lift before the dominant resolves.", scale: "major", genres: ["pop", "indie pop"] },
-  { numerals: ["I7", "IV7", "V7"], tonalities: ["major"], styles: ["Blues"], complexity: "Medium", description: "Dominant sevenths make the key feel bluesy and restless without leaving the form.", scale: "major blues / minor blues", genres: ["blues", "rock and roll"] },
-  { numerals: ["Imaj7", "vi7", "ii7", "V7"], tonalities: ["major"], styles: ["Jazz"], complexity: "Advanced", description: "A smooth turnaround with color tones and a clear dominant pull back to I.", scale: "major / arpeggios", genres: ["jazz", "neo-soul"] },
-  { numerals: ["ii7", "V7", "Imaj7", "vi7"], tonalities: ["major"], styles: ["Jazz"], complexity: "Advanced", description: "Extends the ii-V-I into a loop by using vi as a soft restart.", scale: "major / chord tones", genres: ["jazz", "city pop"] },
-  { numerals: ["i", "VI", "III", "VII"], tonalities: ["minor"], styles: ["Dark", "Melancholic", "Ambient"], complexity: "Simple", description: "Cinematic minor movement with a wide, dramatic lift through the major chords.", scale: "natural minor / minor pentatonic", genres: ["rock", "film", "ambient"] },
-  { numerals: ["i", "iv", "v"], tonalities: ["minor"], styles: ["Blues", "Dark", "Folk"], complexity: "Simple", description: "Natural minor, direct and moody. It avoids the bright dominant pull.", scale: "natural minor / minor pentatonic", genres: ["minor blues", "folk"] },
-  { numerals: ["i", "iv", "V"], tonalities: ["minor"], styles: ["Blues", "Dark", "Jazz"], complexity: "Medium", description: "The major V borrows from harmonic minor to create a stronger resolution to i.", scale: "harmonic minor over V", genres: ["classical", "jazz", "metal"] },
-  { numerals: ["i", "VII", "VI", "VII"], tonalities: ["minor"], styles: ["Dark"], complexity: "Simple", description: "Descending minor color that circles back without fully resolving until i returns.", scale: "natural minor", genres: ["goth", "metal", "soundtrack"] },
-  { numerals: ["i", "VI", "VII"], tonalities: ["minor"], styles: ["Dark", "Uplifting"], complexity: "Simple", description: "Compact and anthemic. The VI-VII rise gives a strong push back to the tonic.", scale: "natural minor / minor pentatonic", genres: ["rock", "metal"] },
-  { numerals: ["i", "III", "VII", "VI"], tonalities: ["minor"], styles: ["Ambient", "Melancholic"], complexity: "Medium", description: "Open and reflective, with major chords softening the minor tonic.", scale: "natural minor", genres: ["ambient", "post-rock"] },
-  { numerals: ["i", "v", "VI", "iv"], tonalities: ["minor"], styles: ["Dark"], complexity: "Medium", description: "Keeps the harmony shadowed by using minor v and iv around the brighter VI.", scale: "natural minor", genres: ["dark pop", "metal"] },
-  { numerals: ["ii\u00b0", "V", "i"], tonalities: ["minor"], styles: ["Jazz", "Dark"], complexity: "Advanced", description: "Minor-key cadence with a diminished setup and a strong harmonic-minor dominant.", scale: "harmonic minor / chord tones", genres: ["jazz", "classical"] },
-  { numerals: ["ii\u00f87", "V7", "i"], tonalities: ["minor"], styles: ["Jazz"], complexity: "Advanced", description: "A jazz minor ii-V-i. The half-diminished ii and dominant V7 aim tightly at tonic.", scale: "harmonic minor / melodic minor colors", genres: ["jazz"] },
+  {
+    numerals: ["I", "V", "vi", "IV"],
+    tonalities: ["major"],
+    styles: ["Pop", "Uplifting", "Folk"],
+    complexity: "Simple",
+    description: "Very common pop movement. Strong, familiar, emotional but stable.",
+    scale: "major / relative minor pentatonic",
+    genres: ["pop", "country", "worship"],
+  },
+  {
+    numerals: ["I", "IV", "V"],
+    tonalities: ["major"],
+    styles: ["Rock", "Blues", "Folk", "Uplifting"],
+    complexity: "Simple",
+    description: "Direct and grounded. It moves away from home, builds tension, then resolves clearly.",
+    scale: "major pentatonic / major blues",
+    genres: ["rock", "blues", "folk"],
+  },
+  {
+    numerals: ["I", "vi", "IV", "V"],
+    tonalities: ["major"],
+    styles: ["Pop", "Folk", "Melancholic"],
+    complexity: "Simple",
+    description: "Classic warm progression with a nostalgic turn through the relative minor.",
+    scale: "major / relative minor pentatonic",
+    genres: ["doo-wop", "pop", "folk"],
+  },
+  {
+    numerals: ["vi", "IV", "I", "V"],
+    tonalities: ["major"],
+    styles: ["Pop", "Rock", "Melancholic"],
+    complexity: "Simple",
+    description: "Starts on emotional contrast, then opens into a broad major-key resolution.",
+    scale: "major / relative minor pentatonic",
+    genres: ["pop rock", "indie"],
+  },
+  {
+    numerals: ["I", "V", "IV", "I"],
+    tonalities: ["major"],
+    styles: ["Rock", "Folk"],
+    complexity: "Simple",
+    description: "Plain-spoken and sturdy. The IV before I gives a relaxed, rootsy landing.",
+    scale: "major pentatonic",
+    genres: ["rock", "folk rock"],
+  },
+  {
+    numerals: ["I", "iii", "IV", "V"],
+    tonalities: ["major"],
+    styles: ["Melancholic", "Ambient", "Pop"],
+    complexity: "Medium",
+    description: "Gentler and more wistful. The iii chord shades the tonic before the IV-V lift.",
+    scale: "major",
+    genres: ["ballads", "ambient pop"],
+  },
+  {
+    numerals: ["ii", "V", "I"],
+    tonalities: ["major"],
+    styles: ["Jazz", "Funk"],
+    complexity: "Medium",
+    description: "The standard jazz cadence: setup, tension, resolution.",
+    scale: "major / mixolydian on V",
+    genres: ["jazz", "soul", "funk"],
+  },
+  {
+    numerals: ["I", "IV", "vi", "V"],
+    tonalities: ["major"],
+    styles: ["Pop", "Uplifting"],
+    complexity: "Simple",
+    description: "Bright and forward-moving, with the vi adding lift before the dominant resolves.",
+    scale: "major",
+    genres: ["pop", "indie pop"],
+  },
+  {
+    numerals: ["I7", "IV7", "V7"],
+    tonalities: ["major"],
+    styles: ["Blues"],
+    complexity: "Medium",
+    description: "Dominant sevenths make the key feel bluesy and restless without leaving the form.",
+    scale: "major blues / minor blues",
+    genres: ["blues", "rock and roll"],
+  },
+  {
+    numerals: ["Imaj7", "vi7", "ii7", "V7"],
+    tonalities: ["major"],
+    styles: ["Jazz"],
+    complexity: "Advanced",
+    description: "A smooth turnaround with color tones and a clear dominant pull back to I.",
+    scale: "major / arpeggios",
+    genres: ["jazz", "neo-soul"],
+  },
+  {
+    numerals: ["ii7", "V7", "Imaj7", "vi7"],
+    tonalities: ["major"],
+    styles: ["Jazz"],
+    complexity: "Advanced",
+    description: "Extends the ii-V-I into a loop by using vi as a soft restart.",
+    scale: "major / chord tones",
+    genres: ["jazz", "city pop"],
+  },
+  {
+    numerals: ["i", "VI", "III", "VII"],
+    tonalities: ["minor"],
+    styles: ["Dark", "Melancholic", "Ambient"],
+    complexity: "Simple",
+    description: "Cinematic minor movement with a wide, dramatic lift through the major chords.",
+    scale: "natural minor / minor pentatonic",
+    genres: ["rock", "film", "ambient"],
+  },
+  {
+    numerals: ["i", "iv", "v"],
+    tonalities: ["minor"],
+    styles: ["Blues", "Dark", "Folk"],
+    complexity: "Simple",
+    description: "Natural minor, direct and moody. It avoids the bright dominant pull.",
+    scale: "natural minor / minor pentatonic",
+    genres: ["minor blues", "folk"],
+  },
+  {
+    numerals: ["i", "iv", "V"],
+    tonalities: ["minor"],
+    styles: ["Blues", "Dark", "Jazz"],
+    complexity: "Medium",
+    description: "The major V borrows from harmonic minor to create a stronger resolution to i.",
+    scale: "harmonic minor over V",
+    genres: ["classical", "jazz", "metal"],
+  },
+  {
+    numerals: ["i", "VII", "VI", "VII"],
+    tonalities: ["minor"],
+    styles: ["Dark"],
+    complexity: "Simple",
+    description: "Descending minor color that circles back without fully resolving until i returns.",
+    scale: "natural minor",
+    genres: ["goth", "metal", "soundtrack"],
+  },
+  {
+    numerals: ["i", "VI", "VII"],
+    tonalities: ["minor"],
+    styles: ["Dark", "Uplifting"],
+    complexity: "Simple",
+    description: "Compact and anthemic. The VI-VII rise gives a strong push back to the tonic.",
+    scale: "natural minor / minor pentatonic",
+    genres: ["rock", "metal"],
+  },
+  {
+    numerals: ["i", "III", "VII", "VI"],
+    tonalities: ["minor"],
+    styles: ["Ambient", "Melancholic"],
+    complexity: "Medium",
+    description: "Open and reflective, with major chords softening the minor tonic.",
+    scale: "natural minor",
+    genres: ["ambient", "post-rock"],
+  },
+  {
+    numerals: ["i", "v", "VI", "iv"],
+    tonalities: ["minor"],
+    styles: ["Dark"],
+    complexity: "Medium",
+    description: "Keeps the harmony shadowed by using minor v and iv around the brighter VI.",
+    scale: "natural minor",
+    genres: ["dark pop", "metal"],
+  },
+  {
+    numerals: ["ii\u00b0", "V", "i"],
+    tonalities: ["minor"],
+    styles: ["Jazz", "Dark"],
+    complexity: "Advanced",
+    description: "Minor-key cadence with a diminished setup and a strong harmonic-minor dominant.",
+    scale: "harmonic minor / chord tones",
+    genres: ["jazz", "classical"],
+  },
+  {
+    numerals: ["ii\u00f87", "V7", "i"],
+    tonalities: ["minor"],
+    styles: ["Jazz"],
+    complexity: "Advanced",
+    description: "A jazz minor ii-V-i. The half-diminished ii and dominant V7 aim tightly at tonic.",
+    scale: "harmonic minor / melodic minor colors",
+    genres: ["jazz"],
+  },
 ];
 
 const PROGRESSION_NUMERALS = {
@@ -189,16 +361,16 @@ const CHORDS = {
 };
 
 const CHORD_FORMULAS = {
-  "5": [0, 7],
+  5: [0, 7],
   major: [0, 4, 7],
   minor: [0, 3, 7],
   dim: [0, 3, 6],
   aug: [0, 4, 8],
   sus2: [0, 2, 7],
   sus4: [0, 5, 7],
-  "6": [0, 4, 7, 9],
+  6: [0, 4, 7, 9],
   m6: [0, 3, 7, 9],
-  "7": [0, 4, 7, 10],
+  7: [0, 4, 7, 10],
   maj7: [0, 4, 7, 11],
   m7: [0, 3, 7, 10],
   mMaj7: [0, 3, 7, 11],
@@ -206,27 +378,30 @@ const CHORD_FORMULAS = {
   m7b5: [0, 3, 6, 10],
   add9: [0, 4, 7, 14],
   madd9: [0, 3, 7, 14],
-  "9": [0, 4, 7, 10, 14],
+  9: [0, 4, 7, 10, 14],
   maj9: [0, 4, 7, 11, 14],
   m9: [0, 3, 7, 10, 14],
-  "11": [0, 4, 7, 10, 14, 17],
-  "13": [0, 4, 7, 10, 14, 21],
+  11: [0, 4, 7, 10, 14, 17],
+  13: [0, 4, 7, 10, 14, 21],
 };
 
 const NORMALIZED_CHORD_FORMULAS = Object.fromEntries(
-  Object.entries(CHORD_FORMULAS).map(([name, intervals]) => [name, [...new Set(intervals.map((interval) => ((interval % 12) + 12) % 12))].sort((a, b) => a - b)]),
+  Object.entries(CHORD_FORMULAS).map(([name, intervals]) => [
+    name,
+    [...new Set(intervals.map((interval) => ((interval % 12) + 12) % 12))].sort((a, b) => a - b),
+  ]),
 );
 const CHORD_FORMULA_COMPLEXITY = {
-  "5": 1,
+  5: 1,
   major: 2,
   minor: 2,
   dim: 2,
   aug: 2,
   sus2: 2,
   sus4: 2,
-  "6": 3,
+  6: 3,
   m6: 3,
-  "7": 3,
+  7: 3,
   maj7: 3,
   m7: 3,
   mMaj7: 4,
@@ -234,11 +409,11 @@ const CHORD_FORMULA_COMPLEXITY = {
   m7b5: 3,
   add9: 4,
   madd9: 4,
-  "9": 5,
+  9: 5,
   maj9: 5,
   m9: 5,
-  "11": 6,
-  "13": 6,
+  11: 6,
+  13: 6,
 };
 const INTERVAL_LABELS = {
   0: "1",
@@ -516,7 +691,9 @@ function getDiatonicChords(key) {
 }
 
 function getCloselyRelatedKeys(keyName) {
-  return getCloselyRelatedKeyChords(keyName).map((chord) => chord.label).join(", ");
+  return getCloselyRelatedKeyChords(keyName)
+    .map((chord) => chord.label)
+    .join(", ");
 }
 
 function getCloselyRelatedKeyChords(keyName) {
@@ -532,7 +709,9 @@ function getCloselyRelatedKeyChords(keyName) {
 }
 
 function getBorrowedOptions(key) {
-  return getBorrowedChordOptions(key).map((chord) => `${chord.degree}: ${chord.label}`).join(", ");
+  return getBorrowedChordOptions(key)
+    .map((chord) => `${chord.degree}: ${chord.label}`)
+    .join(", ");
 }
 
 function getBorrowedChordOptions(key) {
@@ -561,9 +740,7 @@ function sanitizePositionLearning(positionLearning = {}) {
   const system = POSITION_SYSTEMS[positionLearning.system] ? positionLearning.system : "caged";
   const selectedShape = CAGED_SHAPES[positionLearning.selectedShape] ? positionLearning.selectedShape : "C";
   const selectedBox = POSITION_BOXES[positionLearning.selectedBox] ? positionLearning.selectedBox : "box1";
-  const focusRange = ["auto", "open", "low", "middle", "high", "full"].includes(positionLearning.focusRange)
-    ? positionLearning.focusRange
-    : "auto";
+  const focusRange = ["auto", "open", "low", "middle", "high", "full"].includes(positionLearning.focusRange) ? positionLearning.focusRange : "auto";
   return {
     ...defaultState.positionLearning,
     ...positionLearning,
@@ -732,7 +909,11 @@ function practiceScaleLabel(keyName, tonality, suggestion) {
   const root = getCircleKeyData(keyName).major;
   const relativeMinor = getCircleKeyData(keyName).minor;
   if (!suggestion.scale) return "";
-  return suggestion.scale.replace("major", `${root} major`).replace("relative minor", relativeMinor).replace("natural minor", `${root} natural minor`).replace("harmonic minor", `${root} harmonic minor`);
+  return suggestion.scale
+    .replace("major", `${root} major`)
+    .replace("relative minor", relativeMinor)
+    .replace("natural minor", `${root} natural minor`)
+    .replace("harmonic minor", `${root} harmonic minor`);
 }
 
 function supportedNumeralsForTonality(tonality) {
@@ -968,9 +1149,7 @@ function getUniquePitchClasses(notes) {
 
 function getIntervalsFromRoot(pitchClasses, root) {
   const rootIndex = NOTES.indexOf(normalizeNote(root));
-  return pitchClasses
-    .map((note) => (NOTES.indexOf(normalizeNote(note)) - rootIndex + 12) % 12)
-    .sort((a, b) => a - b);
+  return pitchClasses.map((note) => (NOTES.indexOf(normalizeNote(note)) - rootIndex + 12) % 12).sort((a, b) => a - b);
 }
 
 function sameIntervalSet(left, right) {
@@ -998,14 +1177,7 @@ function matchChordFormulas(intervals) {
 }
 
 function formatChordName(root, formulaName, bassNote, accidental = "sharps") {
-  const suffix =
-    formulaName === "major"
-      ? ""
-      : formulaName === "minor"
-        ? "m"
-        : formulaName === "madd9"
-          ? "madd9"
-          : formulaName;
+  const suffix = formulaName === "major" ? "" : formulaName === "minor" ? "m" : formulaName === "madd9" ? "madd9" : formulaName;
   const rootLabel = displayNote(root, accidental);
   const base = `${rootLabel}${suffix}`;
   return bassNote && normalizeNote(bassNote) !== normalizeNote(root) ? `${base}/${displayNote(bassNote, accidental)}` : base;
@@ -1297,13 +1469,15 @@ class FretboardApp extends BaseElement {
   }
 
   render() {
-    const { theme, accidental } = store.state;
+    const { theme, accidental, mode } = store.state;
+    const modeLabel = MODE_LABELS[mode] || "Axe";
     this.innerHTML = `
       <div class="app-shell">
         <header class="topbar">
           <div class="brand" aria-label="Axe">
-            <span class="brand-mark" aria-hidden="true">A</span>
-            <span class="brand-name">Axe</span>
+            <span class="brand-mark" aria-hidden="true">🎸</span>
+            <span class="brand-name brand-name-desktop">Axe</span>
+            <span class="brand-name brand-name-mobile">${escapeHtml(modeLabel)}</span>
           </div>
           <button class="menu-toggle" type="button" data-action="toggle-menu" aria-label="${this.navOpen ? "Close menu" : "Open menu"}" aria-controls="primary-menu" aria-expanded="${this.navOpen}">
             <span></span>
@@ -1475,18 +1649,7 @@ class TuningPanel extends BaseElement {
 
 class ModeSelector extends BaseElement {
   render() {
-    const modes = [
-      ["all", "All"],
-      ["notes", "Notes"],
-      ["scales", "Scales"],
-      ["chords", "Chords"],
-      ["identifier", "Identifier"],
-      ["circle", "Circle"],
-      ["helper", "Helper"],
-      ["progression", "Progression"],
-      ["positions", "Positions"],
-      ["quiz", "Quiz"],
-    ];
+    const modes = MODES.map((mode) => [mode, MODE_LABELS[mode]]);
     this.innerHTML = `
       <div class="segmented" role="group" aria-label="Display mode">
         ${modes.map(([value, label]) => `<button type="button" data-mode="${value}" aria-pressed="${store.state.mode === value}">${label}</button>`).join("")}
@@ -1849,7 +2012,9 @@ class ChordHelperPanel extends BaseElement {
           </label>
         </div>
         <div class="function-strip" aria-label="Chord function guide">
-          ${Object.values(CHORD_FUNCTIONS).map((text) => `<span>${escapeHtml(text)}</span>`).join("")}
+          ${Object.values(CHORD_FUNCTIONS)
+            .map((text) => `<span>${escapeHtml(text)}</span>`)
+            .join("")}
         </div>
         <div class="progression-list">
           ${suggestions.map((suggestion) => this.renderSuggestion(suggestion, key, scale, helper.tonality)).join("")}
@@ -1998,7 +2163,9 @@ class ProgressionBuilderPanel extends BaseElement {
           </article>
           <article class="summary-block">
             <span>Focused chord tones</span>
-            <strong>${notesFromPattern(context.focusedChord.root, CHORDS[context.focusedChord.type] || CHORDS.Major).map((note) => escapeHtml(displayNote(note, context.accidental))).join(" ")}</strong>
+            <strong>${notesFromPattern(context.focusedChord.root, CHORDS[context.focusedChord.type] || CHORDS.Major)
+              .map((note) => escapeHtml(displayNote(note, context.accidental)))
+              .join(" ")}</strong>
           </article>
         </div>
         <div class="saved-progressions">
@@ -2169,7 +2336,10 @@ class PositionPanel extends BaseElement {
           <label>System
             <select name="positionSystem">
               ${Object.entries(POSITION_SYSTEMS)
-                .map(([value, item]) => `<option value="${value}" ${value === positionLearning.system ? "selected" : ""}>${escapeHtml(item.label)}</option>`)
+                .map(
+                  ([value, item]) =>
+                    `<option value="${value}" ${value === positionLearning.system ? "selected" : ""}>${escapeHtml(item.label)}</option>`,
+                )
                 .join("")}
             </select>
           </label>
@@ -2183,13 +2353,21 @@ class PositionPanel extends BaseElement {
             isCaged
               ? `<label>Shape
                   <select name="positionShape">
-                    ${Object.values(CAGED_SHAPES).map((item) => `<option value="${item.id}" ${item.id === positionLearning.selectedShape ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
+                    ${Object.values(CAGED_SHAPES)
+                      .map(
+                        (item) =>
+                          `<option value="${item.id}" ${item.id === positionLearning.selectedShape ? "selected" : ""}>${escapeHtml(item.label)}</option>`,
+                      )
+                      .join("")}
                   </select>
                 </label>`
               : `<label>${isScale ? "Position" : "Box"}
                   <select name="positionBox">
                     ${Object.values(POSITION_BOXES)
-                      .map((item) => `<option value="${item.id}" ${item.id === positionLearning.selectedBox ? "selected" : ""}>${escapeHtml(isScale ? item.positionLabel : item.label)}</option>`)
+                      .map(
+                        (item) =>
+                          `<option value="${item.id}" ${item.id === positionLearning.selectedBox ? "selected" : ""}>${escapeHtml(isScale ? item.positionLabel : item.label)}</option>`,
+                      )
                       .join("")}
                   </select>
                 </label>`
@@ -2307,18 +2485,24 @@ class FretboardView extends BaseElement {
             <span></span>
             ${frets.map((fret) => `<div class="fret-number">${fret}</div>`).join("")}
             ${rows
-              .map(
-                (row) => {
-                  const identifierString = state.mode === "identifier" ? state.chordIdentifier.selectedShape.find((string) => string.stringIndex === row.stringIndex) : null;
-                  const openSelected = identifierString && !identifierString.muted && identifierString.fret === 0;
-                  const mutedSelected = identifierString?.muted;
-                  const stringLabel = mutedSelected ? "x" : displayNote(row.openNote, state.accidental);
-                  const stringState = mutedSelected ? "muted" : openSelected ? "open" : identifierString && !identifierString.muted ? "fretted" : "idle";
-                  const stringAria =
-                    state.mode === "identifier"
-                      ? `String ${row.stringIndex + 1}, ${displayNote(row.openNote, state.accidental)}, ${stringState}. Activate to ${openSelected ? "mute this string" : "make this string open"}.`
-                      : `String ${row.stringIndex + 1}, open ${displayNote(row.openNote, state.accidental)}`;
-                  return `
+              .map((row) => {
+                const identifierString =
+                  state.mode === "identifier" ? state.chordIdentifier.selectedShape.find((string) => string.stringIndex === row.stringIndex) : null;
+                const openSelected = identifierString && !identifierString.muted && identifierString.fret === 0;
+                const mutedSelected = identifierString?.muted;
+                const stringLabel = mutedSelected ? "x" : displayNote(row.openNote, state.accidental);
+                const stringState = mutedSelected
+                  ? "muted"
+                  : openSelected
+                    ? "open"
+                    : identifierString && !identifierString.muted
+                      ? "fretted"
+                      : "idle";
+                const stringAria =
+                  state.mode === "identifier"
+                    ? `String ${row.stringIndex + 1}, ${displayNote(row.openNote, state.accidental)}, ${stringState}. Activate to ${openSelected ? "mute this string" : "make this string open"}.`
+                    : `String ${row.stringIndex + 1}, open ${displayNote(row.openNote, state.accidental)}`;
+                return `
               ${
                 state.mode === "identifier"
                   ? `<button type="button" class="string-name identifier-headstock ${openSelected ? "open-selected" : ""} ${mutedSelected ? "muted-selected" : ""}" data-identifier-string="${row.stringIndex}" aria-label="${escapeHtml(stringAria)}" aria-pressed="${openSelected || mutedSelected}">${escapeHtml(stringLabel)}</button>`
@@ -2329,8 +2513,7 @@ class FretboardView extends BaseElement {
                 .map((pos) => this.renderPosition(pos, visible, state, tuning))
                 .join("")}
             `;
-                },
-              )
+              })
               .join("")}
             <span></span>
             ${frets.map((fret) => `<div class="marker-cell ${MARKER_FRETS.has(fret) ? (DOUBLE_MARKERS.has(fret) ? "double" : "single") : ""}" aria-hidden="true"></div>`).join("")}
@@ -2348,16 +2531,20 @@ class FretboardView extends BaseElement {
       });
     });
     this.querySelectorAll("[data-identifier-string]").forEach((button) => {
-      button.addEventListener("click", () => this.emit("identifier-action", { action: "toggle-string", stringIndex: Number(button.dataset.identifierString) }));
+      button.addEventListener("click", () =>
+        this.emit("identifier-action", { action: "toggle-string", stringIndex: Number(button.dataset.identifierString) }),
+      );
     });
   }
 
   renderPosition(pos, visible, state, tuning) {
     const key = `${pos.stringIndex}:${pos.fret}`;
     const quiz = state.mode === "quiz" ? state.quiz : null;
-    const identifierString = state.mode === "identifier" ? state.chordIdentifier.selectedShape.find((string) => string.stringIndex === pos.stringIndex) : null;
+    const identifierString =
+      state.mode === "identifier" ? state.chordIdentifier.selectedShape.find((string) => string.stringIndex === pos.stringIndex) : null;
     const identifierSelected = identifierString && !identifierString.muted && identifierString.fret === pos.fret;
-    const positionMarker = state.mode === "positions" ? getPositionMarker(state.positionLearning, pos.note, pos.stringIndex, pos.fret, tuning, state.frets) : null;
+    const positionMarker =
+      state.mode === "positions" ? getPositionMarker(state.positionLearning, pos.note, pos.stringIndex, pos.fret, tuning, state.frets) : null;
     const isPositionVisible = positionMarker?.inSystem && (positionMarker.inRange || !state.positionLearning.showOnlyPosition);
     const isVisible =
       state.mode === "positions"
@@ -2366,7 +2553,8 @@ class FretboardView extends BaseElement {
           ? true
           : state.mode === "all" || visible.has(pos.note) || state.mode === "quiz";
     const progressionFocus = state.mode === "progression" ? getProgressionContext(state.progressionBuilder).focusedChord : null;
-    const focusedRoot = state.mode === "helper" ? state.chordHelper.focusChord?.root : state.mode === "circle" ? state.circleFocusChord?.root : progressionFocus?.root;
+    const focusedRoot =
+      state.mode === "helper" ? state.chordHelper.focusChord?.root : state.mode === "circle" ? state.circleFocusChord?.root : progressionFocus?.root;
     const isRoot =
       (state.mode === "positions" && state.positionLearning.showRoots && positionMarker?.root) ||
       ((state.mode === "scales" || state.mode === "chords") && pos.note === state.rootNote) ||
@@ -2403,15 +2591,15 @@ class FretboardView extends BaseElement {
         ? positionMarker.interval
         : state.mode === "identifier" && !state.chordIdentifier.showLabels && !identifierSelected
           ? ""
-        : state.mode === "quiz" && !selected
-          ? ""
-          : displayNote(pos.note, state.accidental);
+          : state.mode === "quiz" && !selected
+            ? ""
+            : displayNote(pos.note, state.accidental);
     const ariaLabel =
       state.mode === "positions" && positionMarker?.interval
         ? `String ${pos.stringIndex + 1}, fret ${pos.fret}, ${displayNote(pos.note, state.accidental)}, interval ${positionMarker.interval}`
         : state.mode === "identifier"
           ? `String ${pos.stringIndex + 1}, fret ${pos.fret}, ${displayNote(pos.note, state.accidental)}${identifierSelected ? ", selected" : ""}`
-        : `String ${pos.stringIndex + 1}, fret ${pos.fret}, ${displayNote(pos.note, state.accidental)}`;
+          : `String ${pos.stringIndex + 1}, fret ${pos.fret}, ${displayNote(pos.note, state.accidental)}`;
     return `
       <div class="position ${classes}" style="--note-color: ${NOTE_COLORS[pos.note]}">
         <button type="button" class="${buttonClasses}" data-position="${key}" aria-label="${escapeHtml(ariaLabel)}" ${state.mode === "quiz" && quiz?.active ? "" : state.mode === "quiz" ? "disabled" : ""} aria-pressed="${state.mode === "identifier" ? Boolean(identifierSelected) : "false"}">${escapeHtml(label)}</button>
@@ -2449,14 +2637,17 @@ function getModeLabel(state, tuning = store.tuning) {
     const detection = detectChord(state.chordIdentifier.selectedShape, tuning, state.accidental);
     return detection.best ? `Identifying ${detection.best.label}` : "Build a chord shape";
   }
-  if (state.mode === "circle") return state.circleFocusChord ? `Showing ${state.circleFocusChord.label}` : `${getCircleKeyData(state.circleKey).major} major context`;
+  if (state.mode === "circle")
+    return state.circleFocusChord ? `Showing ${state.circleFocusChord.label}` : `${getCircleKeyData(state.circleKey).major} major context`;
   if (state.mode === "helper") {
     const focus = state.chordHelper.focusChord;
     return focus ? `Showing ${focus.label}` : `${state.chordHelper.key} ${state.chordHelper.tonality} progressions`;
   }
   if (state.mode === "progression") {
     const { key, focusedNumeral, focusedChord, accidental } = getProgressionContext(state.progressionBuilder);
-    const tones = notesFromPattern(focusedChord.root, CHORDS[focusedChord.type] || CHORDS.Major).map((note) => displayNote(note, accidental)).join(" ");
+    const tones = notesFromPattern(focusedChord.root, CHORDS[focusedChord.type] || CHORDS.Major)
+      .map((note) => displayNote(note, accidental))
+      .join(" ");
     return `${key.major} ${state.progressionBuilder.tonality} progression \u00b7 ${focusedNumeral} = ${focusedChord.label}. Chord tones: ${tones}`;
   }
   if (state.mode === "positions") return getPositionSummary(state, tuning).title;

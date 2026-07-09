@@ -1,5 +1,5 @@
-const CACHE_NAME = "axe-v8";
-const APP_SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest"];
+const CACHE_NAME = "axe-v9";
+const APP_SHELL = ["./", "./index.html", "./styles.css?v=9", "./app.js?v=9", "./manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
