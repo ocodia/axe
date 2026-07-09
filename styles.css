@@ -382,6 +382,19 @@ fretboard-view,
   padding: 0.75rem 0.85rem;
 }
 
+.fretboard-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.fretboard-meta > div {
+  display: grid;
+  gap: 0.08rem;
+}
+
 .fretboard-toolbar strong {
   font-size: 0.95rem;
 }
@@ -391,8 +404,36 @@ fretboard-view,
   font-size: 0.82rem;
 }
 
+.orientation-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.orientation-toggle button {
+  min-height: 2.25rem;
+  border: 0;
+  border-radius: 0;
+  padding: 0.35rem 0.65rem;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.orientation-toggle button + button {
+  border-left: 1px solid var(--border);
+}
+
+.orientation-toggle button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
 .fretboard-scroll {
-  overflow-x: auto;
+  overflow: auto;
   overscroll-behavior-x: contain;
 }
 
@@ -406,6 +447,13 @@ fretboard-view,
   min-width: min(100%, calc(3.2rem + var(--fret-count) * 42px));
   position: relative;
   isolation: isolate;
+}
+
+.fretboard.vertical {
+  grid-template-columns: 3.2rem repeat(var(--string-count), minmax(3.05rem, 1fr)) 2.2rem;
+  grid-template-rows: 2.6rem repeat(var(--fret-count), minmax(42px, 1fr));
+  min-width: min(100%, calc(5.4rem + var(--string-count) * 3.05rem));
+  min-height: calc(2.6rem + var(--fret-count) * 42px);
 }
 
 .fret-number,
@@ -597,6 +645,64 @@ fretboard-view,
 .marker-cell.double {
   grid-template-columns: repeat(2, auto);
   gap: 0.28rem;
+}
+
+.fretboard.vertical .fret-number {
+  border-right: 1px solid var(--border);
+  border-bottom: 0;
+}
+
+.fretboard.vertical .string-name {
+  border-right: 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 1.25rem;
+}
+
+.fretboard.vertical .string-name.open-selected,
+.fretboard.vertical .string-name.identifier-headstock.open-selected {
+  box-shadow: inset 0 -4px 0 var(--accent);
+}
+
+.fretboard.vertical .string-name.muted-selected {
+  box-shadow: inset 0 -4px 0 var(--danger);
+}
+
+.fretboard.vertical .string-name.identifier-headstock {
+  min-height: 0;
+  border-right: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.fretboard.vertical .position {
+  min-width: 3.05rem;
+  min-height: 42px;
+  border-right: 0;
+  border-bottom: 2px solid var(--fret);
+}
+
+.fretboard.vertical .position::before {
+  left: 50%;
+  right: auto;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  height: auto;
+  transform: translateX(-50%);
+}
+
+.fretboard.vertical .position.position-boundary {
+  box-shadow:
+    inset 0 3px 0 var(--accent),
+    inset 0 -3px 0 var(--accent);
+}
+
+.fretboard.vertical .marker-cell {
+  border-left: 1px solid var(--border);
+}
+
+.fretboard.vertical .marker-cell.double {
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(2, auto);
 }
 
 .quiz-status {
@@ -1289,6 +1395,11 @@ fretboard-view,
   .fretboard {
     grid-template-columns: 2.6rem repeat(var(--fret-columns), minmax(38px, 1fr));
   }
+
+  .fretboard.vertical {
+    grid-template-columns: 2.6rem repeat(var(--string-count), minmax(2.75rem, 1fr)) 1.8rem;
+    min-width: min(100%, calc(4.4rem + var(--string-count) * 2.75rem));
+  }
 }
 
 @media (orientation: landscape) and (max-height: 620px) {
@@ -1311,6 +1422,15 @@ fretboard-view,
 
   .position {
     min-height: 2.45rem;
+  }
+
+  .fretboard.vertical {
+    grid-template-rows: 2.35rem repeat(var(--fret-count), minmax(38px, 1fr));
+    min-height: calc(2.35rem + var(--fret-count) * 38px);
+  }
+
+  .fretboard.vertical .position {
+    min-height: 38px;
   }
 }
 

@@ -1288,6 +1288,7 @@ const defaultState = {
   selectedTuningId: "guitar-standard",
   customTunings: [],
   frets: 22,
+  fretboardOrientation: "horizontal",
   theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
   accidental: "sharps",
   mode: "all",
@@ -1362,6 +1363,7 @@ class Store extends EventTarget {
       selectedTuningId: tuning.id,
       customTunings,
       frets: clampFrets(state.frets || tuning.defaultFrets || 22),
+      fretboardOrientation: state.fretboardOrientation === "vertical" ? "vertical" : "horizontal",
       mode: MODES.includes(state.mode) ? state.mode : "all",
       accidental: state.accidental === "flats" ? "flats" : "sharps",
       theme: state.theme === "dark" ? "dark" : "light",
@@ -2465,62 +2467,39 @@ class FretboardView extends BaseElement {
   render() {
     const state = store.state;
     const tuning = store.tuning;
-    const rows = generateFretboardMatrix(tuning.strings, state.frets).slice().reverse();
+    const matrix = generateFretboardMatrix(tuning.strings, state.frets);
+    const rows = matrix.slice().reverse();
     const visible = getVisibleNotes(state);
     const subtitle = getModeLabel(state, tuning);
     const positionSummary = state.mode === "positions" ? getPositionSummary(state, tuning) : null;
     const frets = Array.from({ length: state.frets }, (_, index) => index + 1);
+    const orientation = state.fretboardOrientation;
+    const board =
+      orientation === "vertical" ? this.renderVerticalBoard(matrix, visible, state, tuning, frets) : this.renderHorizontalBoard(rows, visible, state, tuning, frets);
     this.innerHTML = `
       <div class="fretboard-card">
         <div class="fretboard-toolbar">
-          <div>
-            <strong>${escapeHtml(labelForTuning(tuning))}</strong>
-            <span>${tuning.strings.length} strings, ${state.frets} frets</span>
+          <div class="fretboard-meta">
+            <div>
+              <strong>${escapeHtml(labelForTuning(tuning))}</strong>
+              <span>${tuning.strings.length} strings, ${state.frets} frets</span>
+            </div>
+            <span>${escapeHtml(subtitle)}</span>
+            ${positionSummary ? `<span>${escapeHtml(positionSummary.detail)}</span>` : ""}
           </div>
-          <span>${escapeHtml(subtitle)}</span>
-          ${positionSummary ? `<span>${escapeHtml(positionSummary.detail)}</span>` : ""}
+          <div class="orientation-toggle" role="group" aria-label="Fretboard orientation">
+            <button type="button" data-orientation="horizontal" aria-pressed="${orientation === "horizontal"}">Horizontal</button>
+            <button type="button" data-orientation="vertical" aria-pressed="${orientation === "vertical"}">Vertical</button>
+          </div>
         </div>
         <div class="fretboard-scroll" tabindex="0" aria-label="Scrollable fretboard">
-          <div class="fretboard" style="--fret-count: ${state.frets}; --fret-columns: ${state.frets}; --string-count: ${tuning.strings.length};">
-            <span></span>
-            ${frets.map((fret) => `<div class="fret-number">${fret}</div>`).join("")}
-            ${rows
-              .map((row) => {
-                const identifierString =
-                  state.mode === "identifier" ? state.chordIdentifier.selectedShape.find((string) => string.stringIndex === row.stringIndex) : null;
-                const openSelected = identifierString && !identifierString.muted && identifierString.fret === 0;
-                const mutedSelected = identifierString?.muted;
-                const stringLabel = mutedSelected ? "x" : displayNote(row.openNote, state.accidental);
-                const stringState = mutedSelected
-                  ? "muted"
-                  : openSelected
-                    ? "open"
-                    : identifierString && !identifierString.muted
-                      ? "fretted"
-                      : "idle";
-                const stringAria =
-                  state.mode === "identifier"
-                    ? `String ${row.stringIndex + 1}, ${displayNote(row.openNote, state.accidental)}, ${stringState}. Activate to ${openSelected ? "mute this string" : "make this string open"}.`
-                    : `String ${row.stringIndex + 1}, open ${displayNote(row.openNote, state.accidental)}`;
-                return `
-              ${
-                state.mode === "identifier"
-                  ? `<button type="button" class="string-name identifier-headstock ${openSelected ? "open-selected" : ""} ${mutedSelected ? "muted-selected" : ""}" data-identifier-string="${row.stringIndex}" aria-label="${escapeHtml(stringAria)}" aria-pressed="${openSelected || mutedSelected}">${escapeHtml(stringLabel)}</button>`
-                  : `<div class="string-name">${escapeHtml(displayNote(row.openNote, state.accidental))}</div>`
-              }
-              ${row.frets
-                .slice(1)
-                .map((pos) => this.renderPosition(pos, visible, state, tuning))
-                .join("")}
-            `;
-              })
-              .join("")}
-            <span></span>
-            ${frets.map((fret) => `<div class="marker-cell ${MARKER_FRETS.has(fret) ? (DOUBLE_MARKERS.has(fret) ? "double" : "single") : ""}" aria-hidden="true"></div>`).join("")}
-          </div>
+          ${board}
         </div>
       </div>
     `;
+    this.querySelectorAll("[data-orientation]").forEach((button) => {
+      button.addEventListener("click", () => this.emit("app-update", { fretboardOrientation: button.dataset.orientation }));
+    });
     this.querySelectorAll("[data-position]").forEach((button) => {
       button.addEventListener("click", () => {
         if (store.state.mode === "identifier") {
@@ -2535,6 +2514,74 @@ class FretboardView extends BaseElement {
         this.emit("identifier-action", { action: "toggle-string", stringIndex: Number(button.dataset.identifierString) }),
       );
     });
+  }
+
+  renderHorizontalBoard(rows, visible, state, tuning, frets) {
+    return `
+      <div class="fretboard horizontal" style="--fret-count: ${state.frets}; --fret-columns: ${state.frets}; --string-count: ${tuning.strings.length};">
+        <span></span>
+        ${frets.map((fret) => `<div class="fret-number">${fret}</div>`).join("")}
+        ${rows
+          .map(
+            (row) => `
+          ${this.renderStringName(row, state)}
+          ${row.frets
+            .slice(1)
+            .map((pos) => this.renderPosition(pos, visible, state, tuning))
+            .join("")}
+        `,
+          )
+          .join("")}
+        <span></span>
+        ${frets.map((fret) => this.renderMarkerCell(fret)).join("")}
+      </div>
+    `;
+  }
+
+  renderVerticalBoard(matrix, visible, state, tuning, frets) {
+    return `
+      <div class="fretboard vertical" style="--fret-count: ${state.frets}; --string-count: ${tuning.strings.length};">
+        <span></span>
+        ${matrix.map((row) => this.renderStringName(row, state)).join("")}
+        <span></span>
+        ${frets
+          .map(
+            (fret) => `
+          <div class="fret-number">${fret}</div>
+          ${matrix.map((row) => this.renderPosition(row.frets[fret], visible, state, tuning)).join("")}
+          ${this.renderMarkerCell(fret)}
+        `,
+          )
+          .join("")}
+      </div>
+    `;
+  }
+
+  renderStringName(row, state) {
+    const identifierString =
+      state.mode === "identifier" ? state.chordIdentifier.selectedShape.find((string) => string.stringIndex === row.stringIndex) : null;
+    const openSelected = identifierString && !identifierString.muted && identifierString.fret === 0;
+    const mutedSelected = identifierString?.muted;
+    const stringLabel = mutedSelected ? "x" : displayNote(row.openNote, state.accidental);
+    const stringState = mutedSelected
+      ? "muted"
+      : openSelected
+        ? "open"
+        : identifierString && !identifierString.muted
+          ? "fretted"
+          : "idle";
+    const stringAria =
+      state.mode === "identifier"
+        ? `String ${row.stringIndex + 1}, ${displayNote(row.openNote, state.accidental)}, ${stringState}. Activate to ${openSelected ? "mute this string" : "make this string open"}.`
+        : `String ${row.stringIndex + 1}, open ${displayNote(row.openNote, state.accidental)}`;
+    if (state.mode === "identifier") {
+      return `<button type="button" class="string-name identifier-headstock ${openSelected ? "open-selected" : ""} ${mutedSelected ? "muted-selected" : ""}" data-identifier-string="${row.stringIndex}" aria-label="${escapeHtml(stringAria)}" aria-pressed="${openSelected || mutedSelected}">${escapeHtml(stringLabel)}</button>`;
+    }
+    return `<div class="string-name" aria-label="${escapeHtml(stringAria)}">${escapeHtml(displayNote(row.openNote, state.accidental))}</div>`;
+  }
+
+  renderMarkerCell(fret) {
+    return `<div class="marker-cell ${MARKER_FRETS.has(fret) ? (DOUBLE_MARKERS.has(fret) ? "double" : "single") : ""}" aria-hidden="true"></div>`;
   }
 
   renderPosition(pos, visible, state, tuning) {
