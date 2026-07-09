@@ -2467,8 +2467,6 @@ class FretboardView extends BaseElement {
     const matrix = generateFretboardMatrix(tuning.strings, state.frets);
     const rows = matrix.slice().reverse();
     const visible = getVisibleNotes(state);
-    const subtitle = getModeLabel(state, tuning);
-    const positionSummary = state.mode === "positions" ? getPositionSummary(state, tuning) : null;
     const frets = Array.from({ length: state.frets }, (_, index) => index + 1);
     const orientation = state.fretboardOrientation;
     const board =
@@ -2477,12 +2475,7 @@ class FretboardView extends BaseElement {
       <div class="fretboard-card">
         <div class="fretboard-toolbar">
           <div class="fretboard-meta">
-            <div>
-              <strong>${escapeHtml(labelForTuning(tuning))}</strong>
-              <span>${tuning.strings.length} strings, ${state.frets} frets</span>
-            </div>
-            <span>${escapeHtml(subtitle)}</span>
-            ${positionSummary ? `<span>${escapeHtml(positionSummary.detail)}</span>` : ""}
+            <strong>${escapeHtml(labelForTuning(tuning))}</strong>
           </div>
           <div class="orientation-toggle" role="group" aria-label="Fretboard orientation">
             <button type="button" data-orientation="horizontal" aria-pressed="${orientation === "horizontal"}">Horizontal</button>

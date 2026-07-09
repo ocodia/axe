@@ -383,25 +383,16 @@ fretboard-view,
 }
 
 .fretboard-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.75rem;
   min-width: 0;
-}
-
-.fretboard-meta > div {
-  display: grid;
-  gap: 0.08rem;
+  flex: 1 1 auto;
 }
 
 .fretboard-toolbar strong {
+  display: block;
+  overflow: hidden;
   font-size: 0.95rem;
-}
-
-.fretboard-toolbar span {
-  color: var(--muted);
-  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .orientation-toggle {
