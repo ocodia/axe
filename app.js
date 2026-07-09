@@ -1263,11 +1263,15 @@ class BaseElement extends HTMLElement {
 class FretboardApp extends BaseElement {
   connectedCallback() {
     this.settingsOpen = false;
+    this.navOpen = false;
     super.connectedCallback();
     if ("serviceWorker" in navigator && location.protocol !== "file:") {
       navigator.serviceWorker.register("./service-worker.js").catch(() => {});
     }
-    this.addEventListener("app-update", (event) => store.update(event.detail));
+    this.addEventListener("app-update", (event) => {
+      this.navOpen = false;
+      store.update(event.detail);
+    });
     this.addEventListener("tuning-save", (event) => {
       const tuning = {
         id: uid(),
@@ -1297,9 +1301,20 @@ class FretboardApp extends BaseElement {
     this.innerHTML = `
       <div class="app-shell">
         <header class="topbar">
-          <mode-selector></mode-selector>
-          <div class="top-actions">
-            <button type="button" data-action="settings" aria-haspopup="dialog">Settings</button>
+          <div class="brand" aria-label="Axe">
+            <span class="brand-mark" aria-hidden="true">A</span>
+            <span class="brand-name">Axe</span>
+          </div>
+          <button class="menu-toggle" type="button" data-action="toggle-menu" aria-label="${this.navOpen ? "Close menu" : "Open menu"}" aria-controls="primary-menu" aria-expanded="${this.navOpen}">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+          <div id="primary-menu" class="top-menu ${this.navOpen ? "is-open" : ""}">
+            <mode-selector></mode-selector>
+            <div class="top-actions">
+              <button type="button" data-action="settings" aria-haspopup="dialog">Settings</button>
+            </div>
           </div>
         </header>
         <main class="content">
@@ -1339,7 +1354,12 @@ class FretboardApp extends BaseElement {
         }
       </div>
     `;
+    this.querySelector("[data-action='toggle-menu']").addEventListener("click", () => {
+      this.navOpen = !this.navOpen;
+      this.render();
+    });
     this.querySelector("[data-action='settings']").addEventListener("click", () => {
+      this.navOpen = false;
       this.settingsOpen = true;
       this.render();
       this.querySelector(".settings-modal button")?.focus();
@@ -1573,71 +1593,52 @@ class ChordIdentifierPanel extends BaseElement {
     this.innerHTML = `
       <section class="panel chord-identifier-panel">
         <h2>Chord Identifier</h2>
-        <div class="identifier-layout">
-          <div class="identifier-string-list" aria-label="String controls">
-            ${identifier.selectedShape
-              .map((string) => {
-                const openNote = tuning.strings[string.stringIndex] || "C";
-                const selectedNote = string.muted ? "Muted" : displayNote(noteAt(openNote, string.fret), state.accidental);
-                return `
-                  <div class="identifier-string-row">
-                    <span>String ${string.stringIndex + 1}</span>
-                    <strong>${escapeHtml(displayNote(openNote, state.accidental))}</strong>
-                    <button type="button" data-identifier-open="${string.stringIndex}" aria-pressed="${!string.muted && string.fret === 0}">Open</button>
-                    <button type="button" data-identifier-mute="${string.stringIndex}" aria-pressed="${string.muted}">Mute</button>
-                    <em>${escapeHtml(selectedNote)}</em>
-                  </div>
-                `;
-              })
-              .join("")}
+        <div class="identifier-results">
+          <div class="summary-block">
+            <span>${detection.exact ? "Best match" : "Result"}</span>
+            <strong>${escapeHtml(detection.title)}</strong>
+            <p>${escapeHtml(detection.explanation)}</p>
           </div>
-          <div class="identifier-results">
+          <div class="identifier-facts">
             <div class="summary-block">
-              <span>${detection.exact ? "Best match" : "Result"}</span>
-              <strong>${escapeHtml(detection.title)}</strong>
-              <p>${escapeHtml(detection.explanation)}</p>
+              <span>Notes</span>
+              <strong>${selectedNoteLabels.length ? escapeHtml(selectedNoteLabels.join(", ")) : "None"}</strong>
             </div>
-            <div class="identifier-facts">
-              <div class="summary-block">
-                <span>Notes</span>
-                <strong>${selectedNoteLabels.length ? escapeHtml(selectedNoteLabels.join(", ")) : "None"}</strong>
-              </div>
-              <div class="summary-block">
-                <span>Bass note</span>
-                <strong>${detection.bassNote ? escapeHtml(displayNote(detection.bassNote, state.accidental)) : "None"}</strong>
-              </div>
-              <div class="summary-block">
-                <span>Chord tones</span>
-                <strong>${best ? escapeHtml(chordTonesForMatch(best, state.accidental).join(", ")) : "None"}</strong>
-              </div>
-              <div class="summary-block">
-                <span>Intervals</span>
-                <strong>${best ? escapeHtml(intervalLabelsForMatch(best).join(", ")) : "None"}</strong>
-              </div>
+            <div class="summary-block">
+              <span>Bass note</span>
+              <strong>${detection.bassNote ? escapeHtml(displayNote(detection.bassNote, state.accidental)) : "None"}</strong>
             </div>
-            ${
-              detection.alternatives.length
-                ? `
-                  <div class="identifier-alternatives">
-                    <strong>Possible matches</strong>
-                    <ol>
-                      ${detection.alternatives.map((match) => `<li>${escapeHtml(match.label)}</li>`).join("")}
-                    </ol>
-                  </div>
-                `
-                : ""
-            }
-            ${
-              !detection.exact && best
-                ? `
-                  <div class="identifier-alternatives">
-                    <strong>Closest possibility detail</strong>
-                    <p>Missing: ${escapeHtml(best.missing.map((interval) => INTERVAL_LABELS[interval] || String(interval)).join(", ") || "none")}. Extra: ${escapeHtml(best.extra.map((interval) => INTERVAL_LABELS[interval] || String(interval)).join(", ") || "none")}.</p>
-                  </div>
-                `
-                : ""
-            }
+            <div class="summary-block">
+              <span>Chord tones</span>
+              <strong>${best ? escapeHtml(chordTonesForMatch(best, state.accidental).join(", ")) : "None"}</strong>
+            </div>
+            <div class="summary-block">
+              <span>Intervals</span>
+              <strong>${best ? escapeHtml(intervalLabelsForMatch(best).join(", ")) : "None"}</strong>
+            </div>
           </div>
+          ${
+            detection.alternatives.length
+              ? `
+                <div class="identifier-alternatives">
+                  <strong>Possible matches</strong>
+                  <ol>
+                    ${detection.alternatives.map((match) => `<li>${escapeHtml(match.label)}</li>`).join("")}
+                  </ol>
+                </div>
+              `
+              : ""
+          }
+          ${
+            !detection.exact && best
+              ? `
+                <div class="identifier-alternatives">
+                  <strong>Closest possibility detail</strong>
+                  <p>Missing: ${escapeHtml(best.missing.map((interval) => INTERVAL_LABELS[interval] || String(interval)).join(", ") || "none")}. Extra: ${escapeHtml(best.extra.map((interval) => INTERVAL_LABELS[interval] || String(interval)).join(", ") || "none")}.</p>
+                </div>
+              `
+              : ""
+          }
         </div>
         <div class="builder-actions identifier-actions">
           <button type="button" data-action="toggle-labels" aria-pressed="${identifier.showLabels}">Show labels</button>
@@ -1671,12 +1672,6 @@ class ChordIdentifierPanel extends BaseElement {
         </div>
       </section>
     `;
-    this.querySelectorAll("[data-identifier-open]").forEach((button) => {
-      button.addEventListener("click", () => this.emit("identifier-action", { action: "open", stringIndex: Number(button.dataset.identifierOpen) }));
-    });
-    this.querySelectorAll("[data-identifier-mute]").forEach((button) => {
-      button.addEventListener("click", () => this.emit("identifier-action", { action: "mute", stringIndex: Number(button.dataset.identifierMute) }));
-    });
     this.querySelector("[data-action='toggle-labels']").addEventListener("click", () => this.emit("identifier-action", { action: "toggle-labels" }));
     this.querySelector("[data-action='clear-shape']").addEventListener("click", () => this.emit("identifier-action", { action: "clear" }));
     this.querySelector("[data-action='save-shape']").addEventListener("click", () => this.emit("identifier-action", { action: "save" }));
@@ -2316,8 +2311,19 @@ class FretboardView extends BaseElement {
                 (row) => {
                   const identifierString = state.mode === "identifier" ? state.chordIdentifier.selectedShape.find((string) => string.stringIndex === row.stringIndex) : null;
                   const openSelected = identifierString && !identifierString.muted && identifierString.fret === 0;
+                  const mutedSelected = identifierString?.muted;
+                  const stringLabel = mutedSelected ? "x" : displayNote(row.openNote, state.accidental);
+                  const stringState = mutedSelected ? "muted" : openSelected ? "open" : identifierString && !identifierString.muted ? "fretted" : "idle";
+                  const stringAria =
+                    state.mode === "identifier"
+                      ? `String ${row.stringIndex + 1}, ${displayNote(row.openNote, state.accidental)}, ${stringState}. Activate to ${openSelected ? "mute this string" : "make this string open"}.`
+                      : `String ${row.stringIndex + 1}, open ${displayNote(row.openNote, state.accidental)}`;
                   return `
-              <div class="string-name ${openSelected ? "open-selected" : ""}">${escapeHtml(displayNote(row.openNote, state.accidental))}</div>
+              ${
+                state.mode === "identifier"
+                  ? `<button type="button" class="string-name identifier-headstock ${openSelected ? "open-selected" : ""} ${mutedSelected ? "muted-selected" : ""}" data-identifier-string="${row.stringIndex}" aria-label="${escapeHtml(stringAria)}" aria-pressed="${openSelected || mutedSelected}">${escapeHtml(stringLabel)}</button>`
+                  : `<div class="string-name">${escapeHtml(displayNote(row.openNote, state.accidental))}</div>`
+              }
               ${row.frets
                 .slice(1)
                 .map((pos) => this.renderPosition(pos, visible, state, tuning))
@@ -2340,6 +2346,9 @@ class FretboardView extends BaseElement {
         }
         this.emit("quiz-action", { action: "select", position: button.dataset.position });
       });
+    });
+    this.querySelectorAll("[data-identifier-string]").forEach((button) => {
+      button.addEventListener("click", () => this.emit("identifier-action", { action: "toggle-string", stringIndex: Number(button.dataset.identifierString) }));
     });
   }
 
@@ -2587,6 +2596,23 @@ function handleIdentifierAction(action, detail = {}) {
         if (!target) return;
         target.fret = null;
         target.muted = true;
+      }),
+    }));
+    return;
+  }
+  if (action === "toggle-string") {
+    store.update((current) => ({
+      ...current,
+      chordIdentifier: updateIdentifierShape(current, (shape) => {
+        const target = shape.find((string) => string.stringIndex === detail.stringIndex);
+        if (!target) return;
+        if (!target.muted && target.fret === 0) {
+          target.fret = null;
+          target.muted = true;
+          return;
+        }
+        target.fret = 0;
+        target.muted = false;
       }),
     }));
     return;

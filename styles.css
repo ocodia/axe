@@ -161,6 +161,41 @@ label {
   z-index: 5;
 }
 
+.brand {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 0.55rem;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.brand-mark {
+  display: inline-grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.brand-name {
+  font-size: 1.1rem;
+  letter-spacing: 0;
+}
+
+.top-menu {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 1rem;
+}
+
 .topbar mode-selector {
   display: block;
   flex: 1 1 auto;
@@ -175,6 +210,22 @@ label {
   display: flex;
   align-items: center;
   gap: 0.45rem;
+}
+
+.menu-toggle {
+  display: none;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.menu-toggle span {
+  display: block;
+  width: 1.25rem;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
 }
 
 .content {
@@ -381,6 +432,36 @@ fretboard-view,
   background: color-mix(in srgb, var(--accent), var(--surface) 78%);
   color: var(--text);
   box-shadow: inset -4px 0 0 var(--accent);
+}
+
+.string-name.identifier-headstock {
+  width: 100%;
+  height: 100%;
+  min-height: 3.05rem;
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.string-name.identifier-headstock:hover,
+.string-name.identifier-headstock:focus-visible {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.string-name.identifier-headstock.open-selected {
+  background: color-mix(in srgb, var(--accent), var(--surface) 78%);
+  color: var(--text);
+  box-shadow: inset -4px 0 0 var(--accent);
+}
+
+.string-name.muted-selected {
+  background: color-mix(in srgb, var(--danger), var(--surface) 82%);
+  color: var(--text);
+  box-shadow: inset -4px 0 0 var(--danger);
 }
 
 .position {
@@ -764,13 +845,6 @@ fretboard-view,
   grid-column: 1 / -1;
 }
 
-.identifier-layout {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.4fr);
-  gap: 0.75rem;
-}
-
-.identifier-string-list,
 .identifier-results,
 .identifier-facts,
 .identifier-alternatives,
@@ -779,46 +853,13 @@ fretboard-view,
   gap: 0.55rem;
 }
 
-.identifier-string-row {
-  display: grid;
-  grid-template-columns: 4.8rem 2.4rem minmax(3.6rem, auto) minmax(3.6rem, auto) minmax(4.8rem, 1fr);
-  align-items: center;
-  gap: 0.4rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  padding: 0.45rem;
-}
-
-.identifier-string-row span,
-.identifier-string-row em,
 .identifier-alternatives p {
   color: var(--muted);
   font-size: 0.82rem;
 }
 
-.identifier-string-row strong {
-  text-align: center;
-}
-
-.identifier-string-row em {
-  font-style: normal;
-  font-weight: 800;
-}
-
-.identifier-string-row button {
-  min-height: 2.1rem;
-  padding-inline: 0.45rem;
-}
-
-.identifier-string-row button[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--accent-text);
-}
-
 .identifier-facts {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .identifier-alternatives {
@@ -1163,10 +1204,33 @@ fretboard-view,
   border: 0;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 860px) {
   .topbar {
-    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .menu-toggle {
+    display: inline-flex;
     flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .top-menu {
+    display: none;
+    width: 100%;
+    flex: 1 0 100%;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .top-menu.is-open {
+    display: flex;
+  }
+
+  .top-actions {
+    justify-content: flex-end;
   }
 
   .top-actions,
@@ -1175,13 +1239,15 @@ fretboard-view,
     width: 100%;
   }
 
+  .segmented {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
   .controls,
   .compact-grid {
     grid-template-columns: 1fr;
-  }
-
-  .segmented {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .note-grid {
@@ -1190,7 +1256,6 @@ fretboard-view,
 
   .circle-layout,
   .summary-grid,
-  .identifier-layout,
   .identifier-facts,
   .helper-controls,
   .position-controls,
@@ -1203,15 +1268,6 @@ fretboard-view,
   .saved-progression {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .identifier-string-row {
-    grid-template-columns: 1fr 2.4rem;
-  }
-
-  .identifier-string-row button,
-  .identifier-string-row em {
-    grid-column: span 1;
   }
 
   .circle-key .minor-label {
