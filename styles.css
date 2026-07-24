@@ -289,9 +289,9 @@ label {
 
 .segmented {
   display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+  grid-template-columns: repeat(11, minmax(0, 1fr));
   gap: 0.35rem;
-  width: min(980px, 100%);
+  width: min(1080px, 100%);
 }
 
 .segmented button {
@@ -302,6 +302,7 @@ label {
 note-filter,
 scale-panel,
 chord-panel,
+chord-palette-panel,
 chord-identifier-panel,
 circle-of-fifths-panel,
 chord-helper-panel,
@@ -358,6 +359,134 @@ fretboard-view,
   color: #fff;
   text-shadow: 0px 0px 5px #0000007b;
   font-weight: 800;
+}
+
+chord-palette-panel {
+  grid-column: 1 / -1;
+}
+
+.chord-palette-panel {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.palette-controls {
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.8fr) minmax(9rem, 1fr) minmax(14rem, 1.5fr) auto;
+  align-items: end;
+  gap: 0.65rem;
+}
+
+.palette-controls button {
+  min-width: 9rem;
+}
+
+.palette-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.palette-summary strong {
+  color: var(--text);
+}
+
+.palette-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--palette-columns), minmax(8rem, 1fr));
+  min-width: min(100%, calc(7 * 8rem));
+  background: var(--border);
+  gap: 1px;
+}
+
+.palette-degree,
+.palette-cell {
+  min-height: 3.15rem;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface-2);
+}
+
+.palette-degree {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.05rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.palette-degree b {
+  color: var(--text);
+  font-size: 0.96rem;
+}
+
+.palette-cell {
+  width: 100%;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+.palette-cell[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.palette-empty {
+  background: color-mix(in srgb, var(--surface-2), var(--surface) 46%);
+}
+
+.palette-modal {
+  width: min(520px, 100%);
+}
+
+.palette-family-list {
+  display: grid;
+  max-height: min(54vh, 360px);
+  overflow: auto;
+  gap: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 0.55rem;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2rem;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.check-row input {
+  width: 1.1rem;
+  min-height: 1.1rem;
+  flex: 0 0 auto;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.modal-actions button {
+  flex: 1 1 0;
 }
 
 .workspace {
@@ -1421,6 +1550,7 @@ fretboard-view,
   .summary-grid,
   .identifier-facts,
   .helper-controls,
+  .palette-controls,
   .position-controls,
   .function-strip,
   .progression-controls,

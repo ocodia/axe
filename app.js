@@ -3,12 +3,13 @@ const FLAT_DISPLAY = { "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb
 const NOTE_ALIASES = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#", "E#": "F", "B#": "C", Cb: "B", Fb: "E" };
 const STORAGE_KEY = "axe:v1";
 const FRET_OPTIONS = [12, 15, 17, 20, 22, 24];
-const MODES = ["all", "notes", "scales", "chords", "identifier", "circle", "helper", "progression", "positions", "quiz"];
+const MODES = ["all", "notes", "scales", "chords", "palette", "identifier", "circle", "helper", "progression", "positions", "quiz"];
 const MODE_LABELS = {
   all: "All",
   notes: "Notes",
   scales: "Scales",
   chords: "Chords",
+  palette: "Palette",
   identifier: "Identifier",
   circle: "Circle",
   helper: "Helper",
@@ -357,8 +358,48 @@ const CHORDS = {
   "Half-Diminished": [0, 3, 6, 10],
   Sus2: [0, 2, 7],
   Sus4: [0, 5, 7],
+  "Sus2 Sus4": [0, 2, 5, 7],
+  "Major 6": [0, 4, 7, 9],
+  "Minor 6": [0, 3, 7, 9],
+  "7sus2": [0, 2, 7, 10],
+  "7sus4": [0, 5, 7, 10],
+  "Dominant 9": [0, 4, 7, 10, 14],
+  "Major 9": [0, 4, 7, 11, 14],
+  "Minor 9": [0, 3, 7, 10, 14],
   "Power Chord": [0, 7],
 };
+
+const MODAL_MODES = {
+  Ionian: [0, 2, 4, 5, 7, 9, 11],
+  Dorian: [0, 2, 3, 5, 7, 9, 10],
+  Phrygian: [0, 1, 3, 5, 7, 8, 10],
+  Lydian: [0, 2, 4, 6, 7, 9, 11],
+  Mixolydian: [0, 2, 4, 5, 7, 9, 10],
+  Aeolian: [0, 2, 3, 5, 7, 8, 10],
+  Locrian: [0, 1, 3, 5, 6, 8, 10],
+};
+
+const CHORD_PALETTE_DEFAULT_FAMILIES = ["sus2", "triad", "sus4", "7"];
+const CHORD_PALETTE_PRESETS = {
+  default: { label: "Sus2, Triad, Sus4, 7", families: CHORD_PALETTE_DEFAULT_FAMILIES },
+  "with-dom": { label: "Triad, Sus4, 7, Dom 7", families: ["triad", "sus4", "7", "dom7"] },
+  "triad-seventh": { label: "Triad, 7, Major/Minor", families: ["triad", "7", "major-minor"] },
+  custom: { label: "Customize...", families: [] },
+};
+const CHORD_PALETTE_FAMILIES = [
+  { id: "5", label: "5" },
+  { id: "sus2", label: "Sus2" },
+  { id: "triad", label: "Triad" },
+  { id: "sus4", label: "Sus4" },
+  { id: "sus24", label: "Sus24" },
+  { id: "6", label: "6" },
+  { id: "7sus2", label: "7sus2" },
+  { id: "7", label: "7" },
+  { id: "7sus4", label: "7sus4" },
+  { id: "9", label: "9" },
+  { id: "dom7", label: "Dom 7" },
+  { id: "major-minor", label: "Major/Minor" },
+];
 
 const CHORD_FORMULAS = {
   5: [0, 7],
@@ -632,6 +673,123 @@ function notesFromPattern(root, pattern) {
   return pattern.map((interval) => transpose(root, interval));
 }
 
+function getPaletteScale(key, modalMode) {
+  return (MODAL_MODES[modalMode] || MODAL_MODES.Ionian).map((interval) => transpose(key, interval));
+}
+
+function getPaletteDegreeIntervals(modalMode, degreeIndex) {
+  const intervals = MODAL_MODES[modalMode] || MODAL_MODES.Ionian;
+  const rootInterval = intervals[degreeIndex] || 0;
+  return [0, 2, 4, 6].map((offset) => {
+    const target = intervals[(degreeIndex + offset) % intervals.length] + (degreeIndex + offset >= intervals.length ? 12 : 0);
+    return target - rootInterval;
+  });
+}
+
+function chordIntervalsFitScale(root, intervals, scaleSet) {
+  return intervals.every((interval) => scaleSet.has(transpose(root, interval)));
+}
+
+function suffixForChordType(type) {
+  if (type === "Minor") return "m";
+  if (type === "Diminished") return "dim";
+  if (type === "Power Chord") return "5";
+  if (type === "Sus2") return "sus2";
+  if (type === "Sus4") return "sus4";
+  if (type === "Sus2 Sus4") return "sus24";
+  if (type === "Major 6") return "6";
+  if (type === "Minor 6") return "m6";
+  if (type === "Dominant 7") return "7";
+  if (type === "Major 7") return "maj7";
+  if (type === "Minor 7") return "m7";
+  if (type === "Half-Diminished") return "m7b5";
+  if (type === "7sus2") return "7sus2";
+  if (type === "7sus4") return "7sus4";
+  if (type === "Dominant 9") return "9";
+  if (type === "Major 9") return "maj9";
+  if (type === "Minor 9") return "m9";
+  return "";
+}
+
+function labelForPaletteChord(root, type, accidental = "sharps") {
+  return `${displayNote(root, accidental)}${suffixForChordType(type)}`;
+}
+
+function classifyTriad(third, fifth) {
+  if (third === 4 && fifth === 7) return "Major";
+  if (third === 3 && fifth === 7) return "Minor";
+  if (third === 3 && fifth === 6) return "Diminished";
+  return null;
+}
+
+function classifySeventh(third, fifth, seventh) {
+  if (third === 4 && fifth === 7 && seventh === 11) return "Major 7";
+  if (third === 4 && fifth === 7 && seventh === 10) return "Dominant 7";
+  if (third === 3 && fifth === 7 && seventh === 10) return "Minor 7";
+  if (third === 3 && fifth === 6 && seventh === 10) return "Half-Diminished";
+  if (third === 3 && fifth === 6 && seventh === 9) return "Diminished 7";
+  return null;
+}
+
+function paletteChordForFamily(familyId, root, degreeIntervals, scaleSet, accidental = "sharps") {
+  const triadType = classifyTriad(degreeIntervals[1], degreeIntervals[2]);
+  const seventhType = classifySeventh(degreeIntervals[1], degreeIntervals[2], degreeIntervals[3]);
+  const direct = {
+    5: { type: "Power Chord", intervals: CHORDS["Power Chord"] },
+    sus2: { type: "Sus2", intervals: CHORDS.Sus2 },
+    sus4: { type: "Sus4", intervals: CHORDS.Sus4 },
+    sus24: { type: "Sus2 Sus4", intervals: CHORDS["Sus2 Sus4"] },
+    "7sus2": { type: "7sus2", intervals: CHORDS["7sus2"] },
+    "7sus4": { type: "7sus4", intervals: CHORDS["7sus4"] },
+    dom7: { type: "Dominant 7", intervals: CHORDS["Dominant 7"] },
+  }[familyId];
+  if (direct) {
+    if (!chordIntervalsFitScale(root, direct.intervals, scaleSet)) return null;
+    return { label: labelForPaletteChord(root, direct.type, accidental), root, type: direct.type };
+  }
+  if (familyId === "triad") {
+    if (!triadType || !chordIntervalsFitScale(root, CHORDS[triadType], scaleSet)) return null;
+    return { label: labelForPaletteChord(root, triadType, accidental), root, type: triadType };
+  }
+  if (familyId === "major-minor") {
+    if (!["Major", "Minor"].includes(triadType) || !chordIntervalsFitScale(root, CHORDS[triadType], scaleSet)) return null;
+    return { label: labelForPaletteChord(root, triadType, accidental), root, type: triadType };
+  }
+  if (familyId === "6") {
+    const sixthType = degreeIntervals[1] === 3 ? "Minor 6" : degreeIntervals[1] === 4 ? "Major 6" : null;
+    if (!sixthType || !chordIntervalsFitScale(root, CHORDS[sixthType], scaleSet)) return null;
+    return { label: labelForPaletteChord(root, sixthType, accidental), root, type: sixthType };
+  }
+  if (familyId === "7") {
+    if (!seventhType || !chordIntervalsFitScale(root, CHORDS[seventhType], scaleSet)) return null;
+    return { label: labelForPaletteChord(root, seventhType, accidental), root, type: seventhType };
+  }
+  if (familyId === "9") {
+    const ninthType =
+      seventhType === "Major 7" ? "Major 9" : seventhType === "Dominant 7" ? "Dominant 9" : seventhType === "Minor 7" ? "Minor 9" : null;
+    if (!ninthType || !chordIntervalsFitScale(root, CHORDS[ninthType], scaleSet)) return null;
+    return { label: labelForPaletteChord(root, ninthType, accidental), root, type: ninthType };
+  }
+  return null;
+}
+
+function getChordPaletteRows(chordPalette, accidental = "sharps") {
+  const key = normalizeNote(chordPalette.key);
+  const modalMode = MODAL_MODES[chordPalette.modalMode] ? chordPalette.modalMode : "Ionian";
+  const scale = getPaletteScale(key, modalMode);
+  const scaleSet = new Set(scale);
+  const enabledFamilies = chordPalette.enabledFamilies.filter((id) => CHORD_PALETTE_FAMILIES.some((family) => family.id === id));
+  return enabledFamilies.map((familyId) => {
+    const family = CHORD_PALETTE_FAMILIES.find((item) => item.id === familyId);
+    return {
+      family,
+      chords: scale.map((root, degreeIndex) =>
+        paletteChordForFamily(familyId, root, getPaletteDegreeIntervals(modalMode, degreeIndex), scaleSet, accidental),
+      ),
+    };
+  });
+}
+
 function saveState(state) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
@@ -878,6 +1036,24 @@ function sanitizeFocusChord(focusChord) {
     label: focusChord.label || `${displayNote(root)} ${focusChord.type}`,
     root,
     type: focusChord.type,
+  };
+}
+
+function sanitizeChordPalette(chordPalette = {}) {
+  const enabledFamilies = Array.isArray(chordPalette.enabledFamilies)
+    ? chordPalette.enabledFamilies.filter((id) => CHORD_PALETTE_FAMILIES.some((family) => family.id === id))
+    : CHORD_PALETTE_DEFAULT_FAMILIES;
+  const draftFamilies = Array.isArray(chordPalette.draftFamilies)
+    ? chordPalette.draftFamilies.filter((id) => CHORD_PALETTE_FAMILIES.some((family) => family.id === id))
+    : enabledFamilies;
+  return {
+    key: normalizeNote(chordPalette.key || "C"),
+    modalMode: MODAL_MODES[chordPalette.modalMode] ? chordPalette.modalMode : "Ionian",
+    preset: CHORD_PALETTE_PRESETS[chordPalette.preset] ? chordPalette.preset : "default",
+    enabledFamilies: enabledFamilies.length ? enabledFamilies : CHORD_PALETTE_DEFAULT_FAMILIES,
+    draftFamilies: draftFamilies.length ? draftFamilies : enabledFamilies.length ? enabledFamilies : CHORD_PALETTE_DEFAULT_FAMILIES,
+    focusChord: sanitizeFocusChord(chordPalette.focusChord),
+    customizeOpen: Boolean(chordPalette.customizeOpen),
   };
 }
 
@@ -1298,6 +1474,15 @@ const defaultState = {
   selectedScale: "Major",
   selectedChord: "Major",
   selectedNotes: ["C"],
+  chordPalette: {
+    key: "C",
+    modalMode: "Ionian",
+    preset: "default",
+    enabledFamilies: CHORD_PALETTE_DEFAULT_FAMILIES,
+    draftFamilies: CHORD_PALETTE_DEFAULT_FAMILIES,
+    focusChord: null,
+    customizeOpen: false,
+  },
   chordIdentifier: {
     selectedShape: [],
     showLabels: true,
@@ -1372,6 +1557,7 @@ class Store extends EventTarget {
       selectedNotes: Array.isArray(state.selectedNotes) && state.selectedNotes.length ? [...new Set(state.selectedNotes.map(normalizeNote))] : ["C"],
       selectedScale: SCALES[state.selectedScale] ? state.selectedScale : "Major",
       selectedChord: CHORDS[state.selectedChord] ? state.selectedChord : "Major",
+      chordPalette: sanitizeChordPalette(state.chordPalette),
       chordIdentifier: sanitizeChordIdentifier(state.chordIdentifier, tuning, clampFrets(state.frets || tuning.defaultFrets || 22)),
       chordHelper: {
         ...defaultState.chordHelper,
@@ -1496,6 +1682,7 @@ class FretboardApp extends BaseElement {
             <note-filter></note-filter>
             <scale-panel></scale-panel>
             <chord-panel></chord-panel>
+            <chord-palette-panel></chord-palette-panel>
             <chord-identifier-panel></chord-identifier-panel>
             <circle-of-fifths-panel></circle-of-fifths-panel>
             <chord-helper-panel></chord-helper-panel>
@@ -1738,6 +1925,173 @@ class ChordPanel extends BaseElement {
     `;
     this.querySelector("[name='root']").addEventListener("change", (event) => this.emit("app-update", { rootNote: event.target.value }));
     this.querySelector("[name='chord']").addEventListener("change", (event) => this.emit("app-update", { selectedChord: event.target.value }));
+  }
+}
+
+class ChordPalettePanel extends BaseElement {
+  render() {
+    const state = store.state;
+    if (state.mode !== "palette") {
+      this.innerHTML = "";
+      return;
+    }
+    const palette = state.chordPalette;
+    const scale = getPaletteScale(palette.key, palette.modalMode);
+    const rows = getChordPaletteRows(palette, state.accidental);
+    const enabledText = palette.enabledFamilies
+      .map((id) => CHORD_PALETTE_FAMILIES.find((family) => family.id === id)?.label)
+      .filter(Boolean)
+      .join(", ");
+    this.innerHTML = `
+      <section class="panel chord-palette-panel">
+        <h2>Chord Palette</h2>
+        <div class="palette-controls">
+          <label>Key
+            <select name="paletteKey">${NOTES.map((note) => `<option value="${note}" ${note === palette.key ? "selected" : ""}>${escapeHtml(displayNote(note, state.accidental))}</option>`).join("")}</select>
+          </label>
+          <label>Mode
+            <select name="paletteMode">${Object.keys(MODAL_MODES)
+              .map((mode) => `<option value="${escapeHtml(mode)}" ${mode === palette.modalMode ? "selected" : ""}>${escapeHtml(mode)}</option>`)
+              .join("")}</select>
+          </label>
+          <label>Chord palette
+            <select name="palettePreset">${Object.entries(CHORD_PALETTE_PRESETS)
+              .map(
+                ([id, preset]) => `<option value="${escapeHtml(id)}" ${id === palette.preset ? "selected" : ""}>${escapeHtml(preset.label)}</option>`,
+              )
+              .join("")}</select>
+          </label>
+          <button type="button" data-action="customize-palette">Available chords</button>
+        </div>
+        <div class="palette-summary">
+          <span>Chords in ${escapeHtml(displayNote(palette.key, state.accidental))} ${escapeHtml(palette.modalMode)}</span>
+          <strong>${escapeHtml(enabledText || "None")}</strong>
+        </div>
+        <div class="palette-scroll">
+          <div class="palette-grid" style="--palette-columns: 7;">
+            ${scale
+              .map(
+                (note, index) => `
+              <div class="palette-degree">
+                <span>${index + 1}</span>
+                <b>${escapeHtml(displayNote(note, state.accidental))}</b>
+              </div>
+            `,
+              )
+              .join("")}
+            ${rows
+              .map((row) =>
+                row.chords
+                  .map((chord) =>
+                    chord ? this.renderChordCell(chord, palette.focusChord) : `<div class="palette-cell palette-empty" aria-hidden="true"></div>`,
+                  )
+                  .join(""),
+              )
+              .join("")}
+          </div>
+        </div>
+      </section>
+      ${palette.customizeOpen ? this.renderCustomizeModal(palette) : ""}
+    `;
+    this.querySelector("[name='paletteKey']").addEventListener("change", (event) =>
+      this.updatePalette({ key: event.target.value, focusChord: null }),
+    );
+    this.querySelector("[name='paletteMode']").addEventListener("change", (event) =>
+      this.updatePalette({ modalMode: event.target.value, focusChord: null }),
+    );
+    this.querySelector("[name='palettePreset']").addEventListener("change", (event) => this.applyPreset(event.target.value));
+    this.querySelector("[data-action='customize-palette']").addEventListener("click", () =>
+      this.updatePalette({ customizeOpen: true, draftFamilies: [...palette.enabledFamilies] }),
+    );
+    this.querySelectorAll("[data-palette-chord]").forEach((button) => {
+      button.addEventListener("click", () => {
+        this.updatePalette({
+          focusChord: {
+            label: button.dataset.label,
+            root: button.dataset.root,
+            type: button.dataset.type,
+          },
+        });
+      });
+    });
+    this.querySelectorAll("[data-palette-family]").forEach((checkbox) => {
+      checkbox.addEventListener("change", () => {
+        const selected = [...this.querySelectorAll("[data-palette-family]:checked")].map((item) => item.dataset.paletteFamily);
+        this.updatePalette({ draftFamilies: selected.length ? selected : [checkbox.dataset.paletteFamily] });
+      });
+    });
+    this.querySelector("[data-action='save-palette-families']")?.addEventListener("click", () => {
+      const nextFamilies = palette.draftFamilies.length ? palette.draftFamilies : CHORD_PALETTE_DEFAULT_FAMILIES;
+      this.updatePalette({
+        enabledFamilies: nextFamilies,
+        draftFamilies: nextFamilies,
+        preset: "custom",
+        focusChord: null,
+        customizeOpen: false,
+      });
+    });
+    this.querySelectorAll("[data-action='cancel-palette-families']").forEach((element) => {
+      element.addEventListener("click", (event) => {
+        if (event.target !== element && element.classList.contains("modal-backdrop")) return;
+        this.updatePalette({ customizeOpen: false, draftFamilies: [...palette.enabledFamilies] });
+      });
+    });
+  }
+
+  renderChordCell(chord, focused) {
+    const active = focused?.root === chord.root && focused?.type === chord.type && focused?.label === chord.label;
+    return `
+      <button type="button" class="palette-cell" data-palette-chord="true" data-root="${escapeHtml(chord.root)}" data-type="${escapeHtml(chord.type)}" data-label="${escapeHtml(chord.label)}" aria-pressed="${active}">
+        ${escapeHtml(chord.label)}
+      </button>
+    `;
+  }
+
+  renderCustomizeModal(palette) {
+    const draft = new Set(palette.draftFamilies);
+    return `
+      <div class="modal-backdrop" data-action="cancel-palette-families">
+        <section class="settings-modal palette-modal" role="dialog" aria-modal="true" aria-labelledby="palette-modal-title">
+          <div class="modal-header">
+            <h2 id="palette-modal-title">Available chords</h2>
+            <button type="button" data-action="cancel-palette-families" aria-label="Close available chords">Close</button>
+          </div>
+          <div class="palette-family-list" role="group" aria-label="Chord families in palette">
+            ${CHORD_PALETTE_FAMILIES.map(
+              (family) => `
+              <label class="check-row">
+                <input type="checkbox" data-palette-family="${escapeHtml(family.id)}" ${draft.has(family.id) ? "checked" : ""}>
+                <span>${escapeHtml(family.label)}</span>
+              </label>
+            `,
+            ).join("")}
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="primary" data-action="save-palette-families">OK</button>
+            <button type="button" data-action="cancel-palette-families">Cancel</button>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  applyPreset(presetId) {
+    if (presetId === "custom") {
+      this.updatePalette({ preset: "custom", customizeOpen: true, draftFamilies: [...store.state.chordPalette.enabledFamilies] });
+      return;
+    }
+    const preset = CHORD_PALETTE_PRESETS[presetId] || CHORD_PALETTE_PRESETS.default;
+    this.updatePalette({
+      preset: presetId,
+      enabledFamilies: [...preset.families],
+      draftFamilies: [...preset.families],
+      focusChord: null,
+      customizeOpen: false,
+    });
+  }
+
+  updatePalette(patch) {
+    this.emit("app-update", { chordPalette: { ...store.state.chordPalette, ...patch } });
   }
 }
 
@@ -2470,7 +2824,9 @@ class FretboardView extends BaseElement {
     const frets = Array.from({ length: state.frets }, (_, index) => index + 1);
     const orientation = state.fretboardOrientation;
     const board =
-      orientation === "vertical" ? this.renderVerticalBoard(matrix, visible, state, tuning, frets) : this.renderHorizontalBoard(rows, visible, state, tuning, frets);
+      orientation === "vertical"
+        ? this.renderVerticalBoard(matrix, visible, state, tuning, frets)
+        : this.renderHorizontalBoard(rows, visible, state, tuning, frets);
     this.innerHTML = `
       <div class="fretboard-card">
         <div class="fretboard-toolbar">
@@ -2553,13 +2909,7 @@ class FretboardView extends BaseElement {
     const openSelected = identifierString && !identifierString.muted && identifierString.fret === 0;
     const mutedSelected = identifierString?.muted;
     const stringLabel = mutedSelected ? "x" : displayNote(row.openNote, state.accidental);
-    const stringState = mutedSelected
-      ? "muted"
-      : openSelected
-        ? "open"
-        : identifierString && !identifierString.muted
-          ? "fretted"
-          : "idle";
+    const stringState = mutedSelected ? "muted" : openSelected ? "open" : identifierString && !identifierString.muted ? "fretted" : "idle";
     const stringAria =
       state.mode === "identifier"
         ? `String ${row.stringIndex + 1}, ${displayNote(row.openNote, state.accidental)}, ${stringState}. Activate to ${openSelected ? "mute this string" : "make this string open"}.`
@@ -2591,7 +2941,13 @@ class FretboardView extends BaseElement {
           : state.mode === "all" || visible.has(pos.note) || state.mode === "quiz";
     const progressionFocus = state.mode === "progression" ? getProgressionContext(state.progressionBuilder).focusedChord : null;
     const focusedRoot =
-      state.mode === "helper" ? state.chordHelper.focusChord?.root : state.mode === "circle" ? state.circleFocusChord?.root : progressionFocus?.root;
+      state.mode === "helper"
+        ? state.chordHelper.focusChord?.root
+        : state.mode === "circle"
+          ? state.circleFocusChord?.root
+          : state.mode === "palette"
+            ? state.chordPalette.focusChord?.root || state.chordPalette.key
+            : progressionFocus?.root;
     const isRoot =
       (state.mode === "positions" && state.positionLearning.showRoots && positionMarker?.root) ||
       ((state.mode === "scales" || state.mode === "chords") && pos.note === state.rootNote) ||
@@ -2649,6 +3005,13 @@ function getVisibleNotes(state) {
   if (state.mode === "notes") return new Set(state.selectedNotes);
   if (state.mode === "scales") return new Set(notesFromPattern(state.rootNote, SCALES[state.selectedScale]));
   if (state.mode === "chords") return new Set(notesFromPattern(state.rootNote, CHORDS[state.selectedChord]));
+  if (state.mode === "palette" && !state.chordPalette.focusChord) {
+    return new Set(getPaletteScale(state.chordPalette.key, state.chordPalette.modalMode));
+  }
+  if (state.mode === "palette" && state.chordPalette.focusChord) {
+    const { root, type } = state.chordPalette.focusChord;
+    return new Set(notesFromPattern(root, CHORDS[type] || CHORDS.Major));
+  }
   if (state.mode === "identifier") return new Set();
   if (state.mode === "positions") return new Set(getPositionNotes(state.positionLearning));
   if (state.mode === "helper" && state.chordHelper.focusChord) {
@@ -2670,6 +3033,13 @@ function getModeLabel(state, tuning = store.tuning) {
   if (state.mode === "notes") return `Showing ${state.selectedNotes.map((note) => displayNote(note, state.accidental)).join(", ")}`;
   if (state.mode === "scales") return `${displayNote(state.rootNote, state.accidental)} ${state.selectedScale}`;
   if (state.mode === "chords") return `${displayNote(state.rootNote, state.accidental)} ${state.selectedChord}`;
+  if (state.mode === "palette") {
+    const palette = state.chordPalette;
+    const focus = palette.focusChord;
+    return focus
+      ? `Showing ${focus.label} from ${displayNote(palette.key, state.accidental)} ${palette.modalMode}`
+      : `Chord palette: ${displayNote(palette.key, state.accidental)} ${palette.modalMode}`;
+  }
   if (state.mode === "identifier") {
     const detection = detectChord(state.chordIdentifier.selectedShape, tuning, state.accidental);
     return detection.best ? `Identifying ${detection.best.label}` : "Build a chord shape";
@@ -2930,6 +3300,7 @@ customElements.define("mode-selector", ModeSelector);
 customElements.define("note-filter", NoteFilter);
 customElements.define("scale-panel", ScalePanel);
 customElements.define("chord-panel", ChordPanel);
+customElements.define("chord-palette-panel", ChordPalettePanel);
 customElements.define("chord-identifier-panel", ChordIdentifierPanel);
 customElements.define("circle-of-fifths-panel", CircleOfFifthsPanel);
 customElements.define("chord-helper-panel", ChordHelperPanel);
