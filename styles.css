@@ -289,7 +289,7 @@ label {
 
 .segmented {
   display: grid;
-  grid-template-columns: repeat(11, minmax(0, 1fr));
+  grid-template-columns: repeat(13, minmax(0, 1fr));
   gap: 0.35rem;
   width: min(1080px, 100%);
 }
@@ -302,6 +302,8 @@ label {
 note-filter,
 scale-panel,
 chord-panel,
+triad-panel,
+arpeggio-panel,
 chord-palette-panel,
 chord-identifier-panel,
 circle-of-fifths-panel,
@@ -1126,7 +1128,8 @@ chord-palette-panel {
   grid-column: 1 / -1;
 }
 
-.position-panel {
+.position-panel,
+.practice-panel {
   grid-column: 1 / -1;
 }
 
@@ -1552,6 +1555,7 @@ chord-palette-panel {
   .helper-controls,
   .palette-controls,
   .position-controls,
+  .practice-controls,
   .function-strip,
   .progression-controls,
   .explanation-grid {

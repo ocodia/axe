@@ -16,6 +16,8 @@ The app is local-first and runs entirely in the browser using plain HTML, modern
 - Specific-note highlighting
 - Scale highlighting with root emphasis
 - Chord-tone highlighting with root emphasis
+- Triad practice mode with full-neck string-set focus and interval labels
+- Arpeggio practice mode for triads and seventh chords with focused fret ranges
 - Chord shape identifier for clicked fretboard shapes, open strings, and muted strings
 - Position mode for CAGED shapes, pentatonic boxes, scale positions, and focused fret ranges
 - Interval labels for position-focused fretboard learning
@@ -79,3 +81,7 @@ Use Progression mode to choose a key and major/minor tonality, build a Roman num
 ## Position Learning
 
 Use Positions mode to choose a root note, CAGED shape, pentatonic box, or major/natural minor scale position. The fretboard can focus on the active fret range, emphasise roots, and switch note labels to interval labels so you can practise playable chord tones and scale shapes rather than only full-neck note sets.
+
+## Triads And Arpeggios
+
+Use Triads mode to choose a root, quality, and string set across the full neck. Use Arpeggios mode to choose a root, quality, inversion, string set, and fret range. Both modes can switch note labels to interval labels such as R, b3, 3, 5, b7, and 7.

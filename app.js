@@ -3,12 +3,14 @@ const FLAT_DISPLAY = { "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb
 const NOTE_ALIASES = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#", "E#": "F", "B#": "C", Cb: "B", Fb: "E" };
 const STORAGE_KEY = "axe:v1";
 const FRET_OPTIONS = [12, 15, 17, 20, 22, 24];
-const MODES = ["all", "notes", "scales", "chords", "palette", "identifier", "circle", "helper", "progression", "positions", "quiz"];
+const MODES = ["all", "notes", "scales", "chords", "triads", "arpeggios", "palette", "identifier", "circle", "helper", "progression", "positions", "quiz"];
 const MODE_LABELS = {
   all: "All",
   notes: "Notes",
   scales: "Scales",
   chords: "Chords",
+  triads: "Triads",
+  arpeggios: "Arpeggios",
   palette: "Palette",
   identifier: "Identifier",
   circle: "Circle",
@@ -471,6 +473,36 @@ const INTERVAL_LABELS = {
   11: "7",
 };
 
+const PRACTICE_FOCUS_RANGES = ["auto", "open", "low", "middle", "high", "full"];
+const PRACTICE_STRING_SETS = {
+  all: { label: "All strings", description: "Shows the pattern anywhere inside the focused fret range." },
+  lower: { label: "Lower strings", description: "Keeps the pattern on the lower-pitched strings." },
+  middle: { label: "Middle strings", description: "Keeps the pattern around the middle strings." },
+  upper: { label: "Upper strings", description: "Keeps the pattern on the higher-pitched strings." },
+};
+const TRIAD_QUALITIES = {
+  major: { label: "Major", intervals: [0, 4, 7], labels: ["R", "3", "5"] },
+  minor: { label: "Minor", intervals: [0, 3, 7], labels: ["R", "b3", "5"] },
+  diminished: { label: "Diminished", intervals: [0, 3, 6], labels: ["R", "b3", "b5"] },
+  augmented: { label: "Augmented", intervals: [0, 4, 8], labels: ["R", "3", "#5"] },
+};
+const ARPEGGIO_QUALITIES = {
+  major: { label: "Major triad", intervals: [0, 4, 7], labels: ["R", "3", "5"] },
+  minor: { label: "Minor triad", intervals: [0, 3, 7], labels: ["R", "b3", "5"] },
+  diminished: { label: "Diminished triad", intervals: [0, 3, 6], labels: ["R", "b3", "b5"] },
+  augmented: { label: "Augmented triad", intervals: [0, 4, 8], labels: ["R", "3", "#5"] },
+  maj7: { label: "Major 7", intervals: [0, 4, 7, 11], labels: ["R", "3", "5", "7"] },
+  dom7: { label: "Dominant 7", intervals: [0, 4, 7, 10], labels: ["R", "3", "5", "b7"] },
+  m7: { label: "Minor 7", intervals: [0, 3, 7, 10], labels: ["R", "b3", "5", "b7"] },
+  m7b5: { label: "Half-diminished", intervals: [0, 3, 6, 10], labels: ["R", "b3", "b5", "b7"] },
+};
+const PRACTICE_INVERSIONS = [
+  { id: "root", label: "Root position", index: 0 },
+  { id: "first", label: "1st inversion", index: 1 },
+  { id: "second", label: "2nd inversion", index: 2 },
+  { id: "third", label: "3rd inversion", index: 3 },
+];
+
 const POSITION_SYSTEMS = {
   caged: {
     label: "CAGED",
@@ -894,6 +926,35 @@ function normalizeTonality(value) {
   return value === "minor" ? "minor" : "major";
 }
 
+function normalizePracticePattern(pattern = {}, qualities, fallbackQuality) {
+  const quality = qualities[pattern.quality] ? pattern.quality : fallbackQuality;
+  const focusRange = PRACTICE_FOCUS_RANGES.includes(pattern.focusRange) ? pattern.focusRange : "auto";
+  const stringSet = PRACTICE_STRING_SETS[pattern.stringSet] ? pattern.stringSet : "all";
+  const availableInversions = getPracticeInversions(qualities[quality]);
+  const inversion = availableInversions.some((item) => item.id === pattern.inversion) ? pattern.inversion : "root";
+  return {
+    rootNote: normalizeNote(pattern.rootNote || "C"),
+    quality,
+    inversion,
+    stringSet,
+    focusRange,
+    showRoots: pattern.showRoots === undefined ? true : Boolean(pattern.showRoots),
+    showIntervals: pattern.showIntervals === undefined ? true : Boolean(pattern.showIntervals),
+  };
+}
+
+function sanitizeTriadPractice(pattern = {}) {
+  return {
+    ...normalizePracticePattern(pattern, TRIAD_QUALITIES, "major"),
+    inversion: "root",
+    focusRange: "full",
+  };
+}
+
+function sanitizeArpeggioPractice(pattern = {}) {
+  return normalizePracticePattern(pattern, ARPEGGIO_QUALITIES, "maj7");
+}
+
 function sanitizePositionLearning(positionLearning = {}) {
   const system = POSITION_SYSTEMS[positionLearning.system] ? positionLearning.system : "caged";
   const selectedShape = CAGED_SHAPES[positionLearning.selectedShape] ? positionLearning.selectedShape : "C";
@@ -1231,6 +1292,92 @@ function getPositionSummary(state, tuning = store.tuning) {
   return { title, detail, formula, range, root, shapeLabel };
 }
 
+function getPracticeQualities(mode) {
+  return mode === "arpeggios" ? ARPEGGIO_QUALITIES : TRIAD_QUALITIES;
+}
+
+function getPracticeState(state) {
+  return state.mode === "arpeggios" ? state.arpeggioPractice : state.triadPractice;
+}
+
+function getPracticeDefinition(mode, pattern) {
+  const qualities = getPracticeQualities(mode);
+  const quality = qualities[pattern.quality] || qualities[mode === "arpeggios" ? "maj7" : "major"];
+  const inversions = getPracticeInversions(quality);
+  const inversion = inversions.find((item) => item.id === pattern.inversion) || inversions[0];
+  return { quality, inversion, inversions };
+}
+
+function getPracticeInversions(quality) {
+  return PRACTICE_INVERSIONS.filter((item) => item.index < quality.intervals.length);
+}
+
+function getPracticeStringIndexes(stringSet, tuning) {
+  const stringCount = tuning.strings.length;
+  const indexes = Array.from({ length: stringCount }, (_, index) => index);
+  if (stringSet === "all" || stringCount <= 3) return indexes;
+  const count = Math.min(3, stringCount);
+  if (stringSet === "lower") return indexes.slice(0, count);
+  if (stringSet === "upper") return indexes.slice(stringCount - count);
+  const start = Math.max(0, Math.floor((stringCount - count) / 2));
+  return indexes.slice(start, start + count);
+}
+
+function getPracticeAnchorString(pattern, tuning) {
+  const indexes = getPracticeStringIndexes(pattern.stringSet, tuning);
+  return indexes[Math.floor(indexes.length / 2)] ?? 0;
+}
+
+function getPracticeFretRange(mode, pattern, tuning, frets) {
+  if (pattern.focusRange === "full") return { start: 0, end: frets };
+  if (FOCUS_RANGES[pattern.focusRange]) return clampRange(FOCUS_RANGES[pattern.focusRange], frets);
+  const { quality, inversion } = getPracticeDefinition(mode, pattern);
+  const anchorString = getPracticeAnchorString(pattern, tuning);
+  const openNote = tuning.strings[anchorString] || tuning.strings[0] || "E";
+  const anchorNote = transpose(pattern.rootNote, quality.intervals[inversion.index] || 0);
+  const anchorFret = fretForNoteOnString(anchorNote, openNote, frets);
+  const extraSpan = quality.intervals.length > 3 ? 4 : 3;
+  if (anchorFret !== null) return clampRange([anchorFret - 1, anchorFret + extraSpan], frets);
+  return clampRange([3, 7], frets);
+}
+
+function getPracticeNotes(mode, pattern) {
+  const { quality } = getPracticeDefinition(mode, pattern);
+  return notesFromPattern(pattern.rootNote, quality.intervals);
+}
+
+function getPracticeMarker(mode, pattern, note, stringIndex, fret, tuning, frets) {
+  const { quality } = getPracticeDefinition(mode, pattern);
+  const notes = notesFromPattern(pattern.rootNote, quality.intervals);
+  const noteIndex = notes.indexOf(note);
+  const inSystem = noteIndex !== -1;
+  const range = getPracticeFretRange(mode, pattern, tuning, frets);
+  const inRange = fret >= range.start && fret <= range.end;
+  const inStringSet = getPracticeStringIndexes(pattern.stringSet, tuning).includes(stringIndex);
+  return {
+    inSystem,
+    inRange,
+    inStringSet,
+    visible: inSystem && inRange && inStringSet,
+    root: note === pattern.rootNote,
+    interval: inSystem ? quality.labels[noteIndex] : "",
+    boundary: inRange && (fret === range.start || fret === range.end),
+  };
+}
+
+function getPracticeSummary(mode, state, tuning = store.tuning) {
+  const pattern = mode === "arpeggios" ? state.arpeggioPractice : state.triadPractice;
+  const { quality, inversion } = getPracticeDefinition(mode, pattern);
+  const range = getPracticeFretRange(mode, pattern, tuning, state.frets);
+  const root = displayNote(pattern.rootNote, state.accidental);
+  const formula = quality.labels.join(" ");
+  const stringSet = PRACTICE_STRING_SETS[pattern.stringSet] || PRACTICE_STRING_SETS.all;
+  const title =
+    mode === "arpeggios" ? `${root} ${quality.label} arpeggio \u00b7 ${inversion.label}` : `${root} ${quality.label} triad`;
+  const detail = `Formula: ${formula} \u00b7 ${stringSet.label} \u00b7 Focus: frets ${range.start}-${range.end}`;
+  return { title, detail, formula, range, root, quality, inversion, stringSet };
+}
+
 function progressionExplanation(builder) {
   const { scale, focusedNumeral, focusedChord } = getProgressionContext(builder);
   const functionName = getChordFunction(focusedNumeral);
@@ -1474,6 +1621,24 @@ const defaultState = {
   selectedScale: "Major",
   selectedChord: "Major",
   selectedNotes: ["C"],
+  triadPractice: {
+    rootNote: "C",
+    quality: "major",
+    inversion: "root",
+    stringSet: "all",
+    focusRange: "full",
+    showRoots: true,
+    showIntervals: true,
+  },
+  arpeggioPractice: {
+    rootNote: "C",
+    quality: "maj7",
+    inversion: "root",
+    stringSet: "all",
+    focusRange: "auto",
+    showRoots: true,
+    showIntervals: true,
+  },
   chordPalette: {
     key: "C",
     modalMode: "Ionian",
@@ -1557,6 +1722,8 @@ class Store extends EventTarget {
       selectedNotes: Array.isArray(state.selectedNotes) && state.selectedNotes.length ? [...new Set(state.selectedNotes.map(normalizeNote))] : ["C"],
       selectedScale: SCALES[state.selectedScale] ? state.selectedScale : "Major",
       selectedChord: CHORDS[state.selectedChord] ? state.selectedChord : "Major",
+      triadPractice: sanitizeTriadPractice(state.triadPractice),
+      arpeggioPractice: sanitizeArpeggioPractice(state.arpeggioPractice),
       chordPalette: sanitizeChordPalette(state.chordPalette),
       chordIdentifier: sanitizeChordIdentifier(state.chordIdentifier, tuning, clampFrets(state.frets || tuning.defaultFrets || 22)),
       chordHelper: {
@@ -1682,6 +1849,8 @@ class FretboardApp extends BaseElement {
             <note-filter></note-filter>
             <scale-panel></scale-panel>
             <chord-panel></chord-panel>
+            <triad-panel></triad-panel>
+            <arpeggio-panel></arpeggio-panel>
             <chord-palette-panel></chord-palette-panel>
             <chord-identifier-panel></chord-identifier-panel>
             <circle-of-fifths-panel></circle-of-fifths-panel>
@@ -1925,6 +2094,161 @@ class ChordPanel extends BaseElement {
     `;
     this.querySelector("[name='root']").addEventListener("change", (event) => this.emit("app-update", { rootNote: event.target.value }));
     this.querySelector("[name='chord']").addEventListener("change", (event) => this.emit("app-update", { selectedChord: event.target.value }));
+  }
+}
+
+class PracticePatternPanel extends BaseElement {
+  get modeName() {
+    return "triads";
+  }
+
+  get stateKey() {
+    return "triadPractice";
+  }
+
+  get title() {
+    return "Triads";
+  }
+
+  get qualities() {
+    return TRIAD_QUALITIES;
+  }
+
+  get showInversionControl() {
+    return true;
+  }
+
+  get showFocusRangeControl() {
+    return true;
+  }
+
+  get showExplanation() {
+    return true;
+  }
+
+  render() {
+    const state = store.state;
+    if (state.mode !== this.modeName) {
+      this.innerHTML = "";
+      return;
+    }
+    const pattern = state[this.stateKey];
+    const summary = getPracticeSummary(this.modeName, state);
+    const { quality, inversions } = getPracticeDefinition(this.modeName, pattern);
+    this.innerHTML = `
+      <section class="panel practice-panel">
+        <h2>${escapeHtml(this.title)}</h2>
+        <div class="compact-grid practice-controls">
+          <label>Root
+            <select name="practiceRoot">${NOTES.map((note) => `<option value="${note}" ${note === pattern.rootNote ? "selected" : ""}>${escapeHtml(displayNote(note, state.accidental))}</option>`).join("")}</select>
+          </label>
+          <label>Quality
+            <select name="practiceQuality">${Object.entries(this.qualities)
+              .map(([id, item]) => `<option value="${escapeHtml(id)}" ${id === pattern.quality ? "selected" : ""}>${escapeHtml(item.label)}</option>`)
+              .join("")}</select>
+          </label>
+          ${
+            this.showInversionControl
+              ? `<label>Inversion
+                  <select name="practiceInversion">${inversions
+                    .map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === pattern.inversion ? "selected" : ""}>${escapeHtml(item.label)}</option>`)
+                    .join("")}</select>
+                </label>`
+              : ""
+          }
+          <label>String set
+            <select name="practiceStringSet">${Object.entries(PRACTICE_STRING_SETS)
+              .map(([id, item]) => `<option value="${escapeHtml(id)}" ${id === pattern.stringSet ? "selected" : ""}>${escapeHtml(item.label)}</option>`)
+              .join("")}</select>
+          </label>
+          ${
+            this.showFocusRangeControl
+              ? `<label>Focus range
+                  <select name="practiceFocusRange">
+                    <option value="auto" ${pattern.focusRange === "auto" ? "selected" : ""}>Auto</option>
+                    <option value="open" ${pattern.focusRange === "open" ? "selected" : ""}>Open</option>
+                    <option value="low" ${pattern.focusRange === "low" ? "selected" : ""}>Low frets</option>
+                    <option value="middle" ${pattern.focusRange === "middle" ? "selected" : ""}>Middle frets</option>
+                    <option value="high" ${pattern.focusRange === "high" ? "selected" : ""}>High frets</option>
+                    <option value="full" ${pattern.focusRange === "full" ? "selected" : ""}>Full neck</option>
+                  </select>
+                </label>`
+              : ""
+          }
+        </div>
+        <div class="button-row practice-toggle-row" role="group" aria-label="${escapeHtml(this.title)} display options">
+          <button type="button" data-toggle="showRoots" aria-pressed="${pattern.showRoots}">Show roots</button>
+          <button type="button" data-toggle="showIntervals" aria-pressed="${pattern.showIntervals}">Show intervals</button>
+        </div>
+        ${
+          this.showExplanation
+            ? `<div class="explanation-grid practice-explanation">
+                <div class="summary-block">
+                  <span>${escapeHtml(summary.title)}</span>
+                  <p>${escapeHtml(summary.detail)}.</p>
+                </div>
+                <div class="summary-block">
+                  <span>Shape focus</span>
+                  <p>${escapeHtml(summary.stringSet.description)} ${escapeHtml(summary.inversion.label)} places ${escapeHtml(quality.labels[summary.inversion.index] || "R")} near the centre of the auto range.</p>
+                </div>
+              </div>`
+            : ""
+        }
+      </section>
+    `;
+    this.querySelectorAll("select").forEach((select) => {
+      select.addEventListener("change", (event) => {
+        const next = { ...store.state[this.stateKey] };
+        if (event.target.name === "practiceRoot") next.rootNote = event.target.value;
+        if (event.target.name === "practiceQuality") {
+          next.quality = event.target.value;
+          const nextQuality = this.qualities[next.quality] || Object.values(this.qualities)[0];
+          if (!getPracticeInversions(nextQuality).some((item) => item.id === next.inversion)) next.inversion = "root";
+        }
+        if (event.target.name === "practiceInversion") next.inversion = event.target.value;
+        if (event.target.name === "practiceStringSet") next.stringSet = event.target.value;
+        if (event.target.name === "practiceFocusRange") next.focusRange = event.target.value;
+        this.emit("app-update", { [this.stateKey]: next });
+      });
+    });
+    this.querySelectorAll("[data-toggle]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const key = button.dataset.toggle;
+        this.emit("app-update", { [this.stateKey]: { ...store.state[this.stateKey], [key]: !store.state[this.stateKey][key] } });
+      });
+    });
+  }
+}
+
+class TriadPanel extends PracticePatternPanel {
+  get showInversionControl() {
+    return false;
+  }
+
+  get showFocusRangeControl() {
+    return false;
+  }
+
+  get showExplanation() {
+    return false;
+  }
+}
+
+class ArpeggioPanel extends PracticePatternPanel {
+  get modeName() {
+    return "arpeggios";
+  }
+
+  get stateKey() {
+    return "arpeggioPractice";
+  }
+
+  get title() {
+    return "Arpeggios";
+  }
+
+  get qualities() {
+    return ARPEGGIO_QUALITIES;
   }
 }
 
@@ -2927,15 +3251,22 @@ class FretboardView extends BaseElement {
   renderPosition(pos, visible, state, tuning) {
     const key = `${pos.stringIndex}:${pos.fret}`;
     const quiz = state.mode === "quiz" ? state.quiz : null;
+    const isPracticeMode = state.mode === "triads" || state.mode === "arpeggios";
+    const practicePattern = isPracticeMode ? getPracticeState(state) : null;
     const identifierString =
       state.mode === "identifier" ? state.chordIdentifier.selectedShape.find((string) => string.stringIndex === pos.stringIndex) : null;
     const identifierSelected = identifierString && !identifierString.muted && identifierString.fret === pos.fret;
     const positionMarker =
       state.mode === "positions" ? getPositionMarker(state.positionLearning, pos.note, pos.stringIndex, pos.fret, tuning, state.frets) : null;
+    const practiceMarker = isPracticeMode
+      ? getPracticeMarker(state.mode, practicePattern, pos.note, pos.stringIndex, pos.fret, tuning, state.frets)
+      : null;
     const isPositionVisible = positionMarker?.inSystem && (positionMarker.inRange || !state.positionLearning.showOnlyPosition);
     const isVisible =
       state.mode === "positions"
         ? isPositionVisible
+        : isPracticeMode
+          ? practiceMarker?.visible
         : state.mode === "identifier"
           ? true
           : state.mode === "all" || visible.has(pos.note) || state.mode === "quiz";
@@ -2950,6 +3281,7 @@ class FretboardView extends BaseElement {
             : progressionFocus?.root;
     const isRoot =
       (state.mode === "positions" && state.positionLearning.showRoots && positionMarker?.root) ||
+      (isPracticeMode && practicePattern.showRoots && practiceMarker?.root) ||
       ((state.mode === "scales" || state.mode === "chords") && pos.note === state.rootNote) ||
       (focusedRoot && pos.note === focusedRoot);
     const selected = state.mode === "identifier" ? identifierSelected : quiz?.selected.includes(key);
@@ -2962,6 +3294,9 @@ class FretboardView extends BaseElement {
       positionMarker?.inSystem && !positionMarker.inRange ? "position-out-of-range" : "",
       positionMarker?.boundary ? "position-boundary" : "",
       state.mode === "positions" && !positionMarker?.inSystem ? "position-muted" : "",
+      practiceMarker?.inRange && practiceMarker?.inStringSet ? "position-in-range" : "",
+      practiceMarker?.boundary && practiceMarker?.inStringSet ? "position-boundary" : "",
+      isPracticeMode && !practiceMarker?.visible ? "position-muted" : "",
     ]
       .filter(Boolean)
       .join(" ");
@@ -2971,6 +3306,8 @@ class FretboardView extends BaseElement {
       state.mode === "positions" && isRoot ? "position-root" : "",
       state.mode === "positions" && state.positionLearning.showIntervals && positionMarker?.inSystem ? "position-interval" : "",
       state.mode === "positions" && positionMarker?.inSystem && !positionMarker.inRange ? "position-muted" : "",
+      isPracticeMode && isRoot ? "position-root" : "",
+      isPracticeMode && practicePattern.showIntervals && practiceMarker?.visible ? "position-interval" : "",
       selected ? "selected" : "",
       selected && correctAnswer ? "correct" : "",
       selected && !correctAnswer ? "incorrect" : "",
@@ -2982,6 +3319,8 @@ class FretboardView extends BaseElement {
     const label =
       state.mode === "positions" && state.positionLearning.showIntervals && positionMarker?.interval
         ? positionMarker.interval
+        : isPracticeMode && practicePattern.showIntervals && practiceMarker?.interval
+          ? practiceMarker.interval
         : state.mode === "identifier" && !state.chordIdentifier.showLabels && !identifierSelected
           ? ""
           : state.mode === "quiz" && !selected
@@ -2990,6 +3329,8 @@ class FretboardView extends BaseElement {
     const ariaLabel =
       state.mode === "positions" && positionMarker?.interval
         ? `String ${pos.stringIndex + 1}, fret ${pos.fret}, ${displayNote(pos.note, state.accidental)}, interval ${positionMarker.interval}`
+        : isPracticeMode && practiceMarker?.interval
+          ? `String ${pos.stringIndex + 1}, fret ${pos.fret}, ${displayNote(pos.note, state.accidental)}, interval ${practiceMarker.interval}`
         : state.mode === "identifier"
           ? `String ${pos.stringIndex + 1}, fret ${pos.fret}, ${displayNote(pos.note, state.accidental)}${identifierSelected ? ", selected" : ""}`
           : `String ${pos.stringIndex + 1}, fret ${pos.fret}, ${displayNote(pos.note, state.accidental)}`;
@@ -3005,6 +3346,8 @@ function getVisibleNotes(state) {
   if (state.mode === "notes") return new Set(state.selectedNotes);
   if (state.mode === "scales") return new Set(notesFromPattern(state.rootNote, SCALES[state.selectedScale]));
   if (state.mode === "chords") return new Set(notesFromPattern(state.rootNote, CHORDS[state.selectedChord]));
+  if (state.mode === "triads") return new Set(getPracticeNotes(state.mode, state.triadPractice));
+  if (state.mode === "arpeggios") return new Set(getPracticeNotes(state.mode, state.arpeggioPractice));
   if (state.mode === "palette" && !state.chordPalette.focusChord) {
     return new Set(getPaletteScale(state.chordPalette.key, state.chordPalette.modalMode));
   }
@@ -3033,6 +3376,7 @@ function getModeLabel(state, tuning = store.tuning) {
   if (state.mode === "notes") return `Showing ${state.selectedNotes.map((note) => displayNote(note, state.accidental)).join(", ")}`;
   if (state.mode === "scales") return `${displayNote(state.rootNote, state.accidental)} ${state.selectedScale}`;
   if (state.mode === "chords") return `${displayNote(state.rootNote, state.accidental)} ${state.selectedChord}`;
+  if (state.mode === "triads" || state.mode === "arpeggios") return getPracticeSummary(state.mode, state, tuning).title;
   if (state.mode === "palette") {
     const palette = state.chordPalette;
     const focus = palette.focusChord;
@@ -3300,6 +3644,8 @@ customElements.define("mode-selector", ModeSelector);
 customElements.define("note-filter", NoteFilter);
 customElements.define("scale-panel", ScalePanel);
 customElements.define("chord-panel", ChordPanel);
+customElements.define("triad-panel", TriadPanel);
+customElements.define("arpeggio-panel", ArpeggioPanel);
 customElements.define("chord-palette-panel", ChordPalettePanel);
 customElements.define("chord-identifier-panel", ChordIdentifierPanel);
 customElements.define("circle-of-fifths-panel", CircleOfFifthsPanel);
