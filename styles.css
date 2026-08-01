@@ -309,6 +309,7 @@ chord-helper-panel,
 position-panel,
 quiz-panel,
 tuning-panel,
+tuner-panel,
 fretboard-view {
   display: block;
 }
@@ -486,6 +487,166 @@ chord-palette-panel {
 
 .modal-actions button {
   flex: 1 1 0;
+}
+
+.tuner-card {
+  display: grid;
+  gap: 1rem;
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: clamp(1rem, 4vw, 2rem);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.tuner-header,
+.tuner-meter-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.tuner-header h1,
+.tuner-frequency,
+.tuner-target,
+.tuner-cents {
+  margin: 0;
+}
+
+.control-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tuner-header h1 {
+  font-size: clamp(1.1rem, 4vw, 1.55rem);
+}
+
+.tuner-state {
+  color: var(--muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.tuner-reading {
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  padding-block: clamp(1rem, 5vw, 2.5rem);
+  text-align: center;
+}
+
+.tuner-note {
+  min-height: 7rem;
+  color: var(--text);
+  font-size: clamp(6rem, 25vw, 10rem);
+  font-weight: 850;
+  letter-spacing: -0.08em;
+  line-height: 0.9;
+}
+
+.tuner-octave {
+  color: var(--muted);
+  font-size: 1.15rem;
+  font-weight: 750;
+}
+
+.tuner-frequency,
+.tuner-target,
+.tuner-cents {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tuner-meter {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.tuner-meter-labels {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.tuner-meter-labels span:nth-child(2) {
+  color: var(--success);
+}
+
+.tuner-meter-track {
+  position: relative;
+  height: 2.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--danger), var(--surface) 72%), var(--surface-2) 42%, color-mix(in srgb, var(--success), var(--surface) 72%) 50%, var(--surface-2) 58%, color-mix(in srgb, var(--warning), var(--surface) 72%));
+  overflow: hidden;
+}
+
+.tuner-meter-center {
+  position: absolute;
+  inset: 0 auto 0 50%;
+  width: 2px;
+  background: var(--success);
+}
+
+.tuner-needle {
+  position: absolute;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  left: 50%;
+  width: 0.28rem;
+  border-radius: 999px;
+  background: var(--text);
+  box-shadow: 0 0 0.7rem color-mix(in srgb, var(--text), transparent 35%);
+  transform: translateX(-50%);
+  transition: transform 100ms ease-out;
+}
+
+.tuner-cents {
+  justify-self: center;
+  font-weight: 800;
+}
+
+.tuner-status {
+  min-height: 1.5rem;
+  color: var(--text);
+  text-align: center;
+  font-weight: 750;
+}
+
+.tuner-controls {
+  display: grid;
+  gap: 0.85rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.85rem;
+}
+
+.tuner-control-group,
+.tuner-reference {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.tuner-strings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(3rem, 1fr));
+  gap: 0.45rem;
+}
+
+.tuner-strings button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.tuner-message {
+  display: grid;
+  gap: 0.65rem;
+  color: var(--danger);
+  text-align: center;
 }
 
 .workspace {

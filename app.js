@@ -1,9 +1,11 @@
+import { TunerAudioSession, centsBetween, frequencyToNote, midiFrequency } from "./tuner-service.js";
+
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const FLAT_DISPLAY = { "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb" };
 const NOTE_ALIASES = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#", "E#": "F", "B#": "C", Cb: "B", Fb: "E" };
 const STORAGE_KEY = "axe:v1";
 const FRET_OPTIONS = [12, 15, 17, 20, 22, 24];
-const MODES = ["all", "notes", "scales", "chords", "triads", "arpeggios", "palette", "identifier", "circle", "helper", "positions", "quiz"];
+const MODES = ["all", "notes", "scales", "chords", "triads", "arpeggios", "palette", "identifier", "circle", "helper", "positions", "quiz", "tuner"];
 const MODE_LABELS = {
   all: "All",
   notes: "Notes",
@@ -17,6 +19,7 @@ const MODE_LABELS = {
   helper: "Helper",
   positions: "Positions",
   quiz: "Quiz",
+  tuner: "Tuner",
 };
 const MARKER_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
 const DOUBLE_MARKERS = new Set([12, 24]);
@@ -652,18 +655,18 @@ const FOCUS_RANGES = {
 };
 
 const PRESET_TUNINGS = [
-  { id: "guitar-standard", instrument: "Guitar", name: "Standard", strings: ["E", "A", "D", "G", "B", "E"], defaultFrets: 22 },
-  { id: "guitar-drop-d", instrument: "Guitar", name: "Drop D", strings: ["D", "A", "D", "G", "B", "E"], defaultFrets: 22 },
-  { id: "guitar-dadgad", instrument: "Guitar", name: "DADGAD", strings: ["D", "A", "D", "G", "A", "D"], defaultFrets: 22 },
-  { id: "guitar-open-g", instrument: "Guitar", name: "Open G", strings: ["D", "G", "D", "G", "B", "D"], defaultFrets: 22 },
-  { id: "guitar-open-d", instrument: "Guitar", name: "Open D", strings: ["D", "A", "D", "F#", "A", "D"], defaultFrets: 22 },
-  { id: "guitar-half-step-down", instrument: "Guitar", name: "Half-step down", strings: ["Eb", "Ab", "Db", "Gb", "Bb", "Eb"], defaultFrets: 22 },
-  { id: "bass-4-standard", instrument: "Bass", name: "4-string standard", strings: ["E", "A", "D", "G"], defaultFrets: 20 },
-  { id: "bass-5-standard", instrument: "Bass", name: "5-string standard", strings: ["B", "E", "A", "D", "G"], defaultFrets: 20 },
-  { id: "bass-drop-d", instrument: "Bass", name: "Drop D bass", strings: ["D", "A", "D", "G"], defaultFrets: 20 },
-  { id: "ukulele-standard", instrument: "Ukulele", name: "Standard re-entrant", strings: ["G", "C", "E", "A"], defaultFrets: 15 },
-  { id: "ukulele-low-g", instrument: "Ukulele", name: "Low G", strings: ["G", "C", "E", "A"], defaultFrets: 15 },
-  { id: "ukulele-baritone", instrument: "Ukulele", name: "Baritone", strings: ["D", "G", "B", "E"], defaultFrets: 15 },
+  { id: "guitar-standard", instrument: "Guitar", name: "Standard", strings: ["E", "A", "D", "G", "B", "E"], targetMidis: [40, 45, 50, 55, 59, 64], defaultFrets: 22 },
+  { id: "guitar-drop-d", instrument: "Guitar", name: "Drop D", strings: ["D", "A", "D", "G", "B", "E"], targetMidis: [38, 45, 50, 55, 59, 64], defaultFrets: 22 },
+  { id: "guitar-dadgad", instrument: "Guitar", name: "DADGAD", strings: ["D", "A", "D", "G", "A", "D"], targetMidis: [38, 45, 50, 55, 57, 62], defaultFrets: 22 },
+  { id: "guitar-open-g", instrument: "Guitar", name: "Open G", strings: ["D", "G", "D", "G", "B", "D"], targetMidis: [38, 43, 50, 55, 59, 62], defaultFrets: 22 },
+  { id: "guitar-open-d", instrument: "Guitar", name: "Open D", strings: ["D", "A", "D", "F#", "A", "D"], targetMidis: [38, 45, 50, 54, 57, 62], defaultFrets: 22 },
+  { id: "guitar-half-step-down", instrument: "Guitar", name: "Half-step down", strings: ["Eb", "Ab", "Db", "Gb", "Bb", "Eb"], targetMidis: [39, 44, 49, 54, 58, 63], defaultFrets: 22 },
+  { id: "bass-4-standard", instrument: "Bass", name: "4-string standard", strings: ["E", "A", "D", "G"], targetMidis: [28, 33, 38, 43], defaultFrets: 20 },
+  { id: "bass-5-standard", instrument: "Bass", name: "5-string standard", strings: ["B", "E", "A", "D", "G"], targetMidis: [23, 28, 33, 38, 43], defaultFrets: 20 },
+  { id: "bass-drop-d", instrument: "Bass", name: "Drop D bass", strings: ["D", "A", "D", "G"], targetMidis: [26, 33, 38, 43], defaultFrets: 20 },
+  { id: "ukulele-standard", instrument: "Ukulele", name: "Standard re-entrant", strings: ["G", "C", "E", "A"], targetMidis: [67, 60, 64, 69], defaultFrets: 15 },
+  { id: "ukulele-low-g", instrument: "Ukulele", name: "Low G", strings: ["G", "C", "E", "A"], targetMidis: [55, 60, 64, 69], defaultFrets: 15 },
+  { id: "ukulele-baritone", instrument: "Ukulele", name: "Baritone", strings: ["D", "G", "B", "E"], targetMidis: [50, 55, 59, 64], defaultFrets: 15 },
 ].map((tuning) => ({ ...tuning, strings: tuning.strings.map((note) => normalizeNote(note)) }));
 
 function normalizeNote(value) {
@@ -686,6 +689,18 @@ function transpose(note, semitones) {
 
 function noteAt(openNote, fret) {
   return transpose(openNote, Number(fret));
+}
+
+function targetMidisForTuning(tuning) {
+  if (Array.isArray(tuning.targetMidis) && tuning.targetMidis.length === tuning.strings.length) return tuning.targetMidis;
+  const fallback = tuning.strings.length === 4 ? [40, 45, 50, 55] : [40, 45, 50, 55, 59, 64];
+  return tuning.strings.map((note, index) => {
+    const base = fallback[Math.min(index, fallback.length - 1)];
+    const pitchClass = NOTES.indexOf(normalizeNote(note));
+    const octaveBase = Math.floor(base / 12) * 12;
+    const candidates = [octaveBase + pitchClass - 12, octaveBase + pitchClass, octaveBase + pitchClass + 12];
+    return candidates.reduce((closest, candidate) => Math.abs(candidate - base) < Math.abs(closest - base) ? candidate : closest, candidates[0]);
+  });
 }
 
 function generateFretboardMatrix(strings, frets) {
@@ -1610,6 +1625,7 @@ class Store extends EventTarget {
           instrument: tuning.instrument || "Custom",
           name: tuning.name || "Untitled",
           strings: Array.isArray(tuning.strings) && tuning.strings.length ? tuning.strings.map(normalizeNote) : ["E", "A", "D", "G", "B", "E"],
+          targetMidis: Array.isArray(tuning.targetMidis) ? tuning.targetMidis.map(Number) : undefined,
         }))
       : [];
     const tuning = groupedTunings(customTunings).find((item) => item.id === state.selectedTuningId) || PRESET_TUNINGS[0];
@@ -1753,7 +1769,7 @@ class FretboardApp extends BaseElement {
       </section>`;
     const workspaceMarkup = `
       <section class="workspace" aria-label="Fretboard">
-        <fretboard-view></fretboard-view>
+        ${mode === "tuner" ? "<tuner-panel></tuner-panel>" : "<fretboard-view></fretboard-view>"}
       </section>`;
     this.innerHTML = `
       <div class="app-shell">
@@ -1906,6 +1922,168 @@ class TuningPanel extends BaseElement {
       const custom = { id: uid(), instrument: "Custom", name: `${tuning.name} edit`, strings };
       store.update((state) => ({ ...state, customTunings: [...state.customTunings, custom], selectedTuningId: custom.id }));
     }
+  }
+}
+
+const TUNER_STORAGE_KEY = "axe:tuner:v1";
+
+function loadTunerPreferences() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TUNER_STORAGE_KEY) || "{}");
+    return {
+      referencePitch: Number.isFinite(Number(saved.referencePitch)) ? Number(saved.referencePitch) : 440,
+      selectedString: Number.isInteger(saved.selectedString) ? saved.selectedString : null,
+      manual: Boolean(saved.manual),
+    };
+  } catch {
+    return { referencePitch: 440, selectedString: null, manual: false };
+  }
+}
+
+function saveTunerPreferences(preferences) {
+  try {
+    localStorage.setItem(TUNER_STORAGE_KEY, JSON.stringify(preferences));
+  } catch {
+    // Preferences are optional; private browsing may disable localStorage.
+  }
+}
+
+class TunerPanel extends BaseElement {
+  connectedCallback() {
+    this.preferences = loadTunerPreferences();
+    this.pitchHistory = [];
+    this.smoothedFrequency = null;
+    this.displayCents = 0;
+    this.session = new TunerAudioSession((pitch) => this.handlePitch(pitch));
+    super.connectedCallback();
+    this.startSession();
+  }
+
+  disconnectedCallback() {
+    this.session?.stop();
+    super.disconnectedCallback();
+  }
+
+  render() {
+    if (this.isRendered) return;
+    this.isRendered = true;
+    const tuning = store.tuning;
+    const strings = targetMidisForTuning(tuning);
+    if (this.preferences.selectedString !== null && this.preferences.selectedString >= strings.length) this.preferences.selectedString = null;
+    this.innerHTML = `
+      <section class="tuner-card">
+        <div class="tuner-header">
+          <div><h1>Tune your ${escapeHtml(tuning.instrument.toLowerCase())}</h1></div>
+          <span class="tuner-state" data-tuner-state>Listening...</span>
+        </div>
+        <div class="tuner-reading" aria-live="polite">
+          <div class="tuner-note" data-tuner-note>—</div>
+          <div class="tuner-octave" data-tuner-octave></div>
+          <div class="tuner-frequency" data-tuner-frequency>Waiting for a note</div>
+          <div class="tuner-target" data-tuner-target>Target —</div>
+        </div>
+        <div class="tuner-meter" role="meter" aria-label="Tuning accuracy" aria-valuemin="-50" aria-valuemax="50" aria-valuenow="0">
+          <div class="tuner-meter-labels"><span>Flat</span><span>In Tune</span><span>Sharp</span></div>
+          <div class="tuner-meter-track"><div class="tuner-meter-center"></div><div class="tuner-needle" data-tuner-needle></div></div>
+          <div class="tuner-cents" data-tuner-cents>— cents</div>
+        </div>
+        <div class="tuner-status" data-tuner-status>Allow microphone access, then play one string.</div>
+        <div class="tuner-controls">
+          <div class="tuner-control-group"><span class="control-label">Target mode</span><div class="button-row">
+            <button type="button" data-tuner-mode="auto" aria-pressed="${!this.preferences.manual}">Auto</button>
+            <button type="button" data-tuner-mode="manual" aria-pressed="${this.preferences.manual}">Manual string</button>
+          </div></div>
+          <div class="tuner-control-group" data-tuner-strings ${this.preferences.manual ? "" : "hidden"}><span class="control-label">${escapeHtml(tuning.name)} strings</span><div class="tuner-strings">
+            ${tuning.strings.map((note, index) => `<button type="button" data-tuner-string="${index}" aria-pressed="${this.preferences.selectedString === index}">${escapeHtml(displayNote(note, store.state.accidental))}</button>`).join("")}
+          </div></div>
+          <label class="tuner-reference">Reference pitch
+            <select data-tuner-reference>
+              ${[432, 438, 440, 442].map((pitch) => `<option value="${pitch}" ${this.preferences.referencePitch === pitch ? "selected" : ""}>A4 = ${pitch} Hz</option>`).join("")}
+              <option value="custom" ${[432, 438, 440, 442].includes(this.preferences.referencePitch) ? "" : "selected"}>Custom</option>
+            </select>
+            <input data-tuner-custom-reference type="number" min="400" max="480" step="0.1" value="${this.preferences.referencePitch}" aria-label="Custom reference pitch">
+          </label>
+        </div>
+        <div class="tuner-message" data-tuner-message hidden></div>
+      </section>
+    `;
+    this.bindControls();
+  }
+
+  async startSession() {
+    try {
+      await this.session.start();
+      this.querySelector("[data-tuner-status]").textContent = "Listening... Play one string clearly.";
+    } catch (error) {
+      this.session.stop();
+      const message = error?.name === "NotAllowedError" ? "Microphone access was denied. Allow it in your browser settings and try again." : error.message === "unsupported" ? "This browser does not support microphone tuning. Use a secure connection in a modern browser." : "The microphone could not be started. Check that it is available, then try again.";
+      const messageElement = this.querySelector("[data-tuner-message]");
+      messageElement.hidden = false;
+      messageElement.textContent = message;
+      this.querySelector("[data-tuner-status]").textContent = "Microphone unavailable";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "primary";
+      button.textContent = "Try again";
+      button.addEventListener("click", () => {
+        button.remove();
+        messageElement.hidden = true;
+        this.startSession();
+      });
+      messageElement.append(button);
+    }
+  }
+
+  bindControls() {
+    this.querySelectorAll("[data-tuner-mode]").forEach((button) => button.addEventListener("click", () => {
+      this.preferences.manual = button.dataset.tunerMode === "manual";
+      if (!this.preferences.manual) this.preferences.selectedString = null;
+      saveTunerPreferences(this.preferences);
+      this.querySelectorAll("[data-tuner-mode]").forEach((item) => item.setAttribute("aria-pressed", String((item.dataset.tunerMode === "manual") === this.preferences.manual)));
+      this.querySelector("[data-tuner-strings]").hidden = !this.preferences.manual;
+    }));
+    this.querySelectorAll("[data-tuner-string]").forEach((button) => button.addEventListener("click", () => {
+      this.preferences.selectedString = Number(button.dataset.tunerString);
+      saveTunerPreferences(this.preferences);
+      this.querySelectorAll("[data-tuner-string]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+    }));
+    this.querySelector("[data-tuner-reference]").addEventListener("change", (event) => {
+      if (event.target.value !== "custom") this.preferences.referencePitch = Number(event.target.value);
+      saveTunerPreferences(this.preferences);
+    });
+    this.querySelector("[data-tuner-custom-reference]").addEventListener("change", (event) => {
+      const value = Math.max(400, Math.min(480, Number(event.target.value) || 440));
+      this.preferences.referencePitch = value;
+      this.querySelector("[data-tuner-reference]").value = [432, 438, 440, 442].includes(value) ? String(value) : "custom";
+      saveTunerPreferences(this.preferences);
+    });
+  }
+
+  handlePitch({ frequency, confidence }) {
+    this.pitchHistory.push(frequency);
+    if (this.pitchHistory.length > 5) this.pitchHistory.shift();
+    if (this.pitchHistory.length < 3) return;
+    const sorted = [...this.pitchHistory].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    this.smoothedFrequency = this.smoothedFrequency === null ? median : this.smoothedFrequency * 0.72 + median * 0.28;
+    const detected = frequencyToNote(this.smoothedFrequency, this.preferences.referencePitch);
+    const tuning = store.tuning;
+    const midis = targetMidisForTuning(tuning);
+    const targetMidi = this.preferences.manual && this.preferences.selectedString !== null ? midis[this.preferences.selectedString] : detected.midi;
+    const targetFrequency = midiFrequency(targetMidi, this.preferences.referencePitch);
+    const cents = centsBetween(this.smoothedFrequency, targetFrequency);
+    const unrelated = this.preferences.manual && Math.abs(detected.midi - targetMidi) > 1;
+    this.currentCents = Math.max(-50, Math.min(50, cents));
+    this.querySelector("[data-tuner-note]").textContent = displayNote(NOTES[detected.noteIndex], store.state.accidental);
+    this.querySelector("[data-tuner-octave]").textContent = `Octave ${detected.octave}`;
+    this.querySelector("[data-tuner-frequency]").textContent = `${this.smoothedFrequency.toFixed(2)} Hz · confidence ${Math.round(confidence * 100)}%`;
+    this.querySelector("[data-tuner-target]").textContent = `Target ${displayNote(NOTES[targetMidi % 12], store.state.accidental)}${Math.floor(targetMidi / 12) - 1} · ${targetFrequency.toFixed(2)} Hz`;
+    this.querySelector("[data-tuner-cents]").textContent = `${cents >= 0 ? "+" : ""}${cents.toFixed(1)} cents`;
+    this.querySelector("[data-tuner-status]").textContent = unrelated ? `Play the selected ${displayNote(NOTES[targetMidi % 12], store.state.accidental)} string` : Math.abs(cents) <= 5 ? "In tune" : cents < 0 ? "Flat — tune up" : "Sharp — tune down";
+    this.querySelector("[data-tuner-state]").textContent = unrelated ? "Other note" : "Detected";
+    this.querySelector("[data-tuner-needle]").style.left = `calc(50% + ${this.currentCents}%)`;
+    const meter = this.querySelector(".tuner-meter");
+    meter.setAttribute("aria-valuenow", this.currentCents.toFixed(1));
   }
 }
 
@@ -3488,3 +3666,4 @@ customElements.define("circle-of-fifths-panel", CircleOfFifthsPanel);
 customElements.define("chord-helper-panel", ChordHelperPanel);
 customElements.define("position-panel", PositionPanel);
 customElements.define("quiz-panel", QuizPanel);
+customElements.define("tuner-panel", TunerPanel);

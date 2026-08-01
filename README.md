@@ -24,6 +24,7 @@ The app is local-first and runs entirely in the browser using plain HTML, modern
 - Interactive circle of fifths with key signatures, relative minors, diatonic chords, and related-key context
 - Chord progression helper with Roman numerals, chord functions, mood filters, and practice-scale suggestions
 - Simple quiz mode with immediate note reveal and scoring
+- Microphone tuner mode with automatic and manual string tuning
 - Offline support through a service worker
 - Installable PWA manifest
 
@@ -32,6 +33,7 @@ The app is local-first and runs entirely in the browser using plain HTML, modern
 - `index.html` - app shell
 - `styles.css` - responsive UI and theme styling
 - `app.js` - state, utilities, Web Components, quiz logic
+- `tuner-service.js` - microphone session and YIN pitch detection
 - `manifest.webmanifest` - PWA metadata
 - `service-worker.js` - offline app-shell cache
 
