@@ -208,12 +208,6 @@ label {
   border: none;
 }
 
-.top-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
 .menu-toggle {
   display: none;
   width: var(--tap);
@@ -516,17 +510,9 @@ chord-palette-panel {
   padding: 0.75rem 0.85rem;
 }
 
-.fretboard-meta {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.fretboard-toolbar strong {
-  display: block;
-  overflow: hidden;
-  font-size: 0.95rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.fretboard-toolbar button {
+  font-size: 0.82rem;
+  font-weight: 750;
 }
 
 .orientation-toggle {
@@ -1365,6 +1351,10 @@ chord-palette-panel {
   font-size: 0.88rem;
 }
 
+.summary-subheading {
+  margin-top: 0.75rem;
+}
+
 .saved-list {
   display: grid;
   gap: 0.45rem;
@@ -1510,11 +1500,6 @@ chord-palette-panel {
     display: flex;
   }
 
-  .top-actions {
-    justify-content: flex-end;
-  }
-
-  .top-actions,
   .topbar mode-selector,
   .controls {
     width: 100%;

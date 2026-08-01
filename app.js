@@ -1725,6 +1725,13 @@ class FretboardApp extends BaseElement {
     });
     this.addEventListener("quiz-action", (event) => handleQuizAction(event.detail.action, event.detail.position));
     this.addEventListener("identifier-action", (event) => handleIdentifierAction(event.detail.action, event.detail));
+    this.addEventListener("click", (event) => {
+      if (!event.target.closest("[data-action='settings']")) return;
+      this.navOpen = false;
+      this.settingsOpen = true;
+      this.render();
+      this.querySelector(".settings-modal button")?.focus();
+    });
   }
 
   render() {
@@ -1763,13 +1770,10 @@ class FretboardApp extends BaseElement {
           </button>
           <div id="primary-menu" class="top-menu ${this.navOpen ? "is-open" : ""}">
             <mode-selector></mode-selector>
-            <div class="top-actions">
-              <button type="button" data-action="settings" aria-haspopup="dialog">Settings</button>
-            </div>
           </div>
         </header>
         <main class="content">
-          ${workspaceMarkup + controlsMarkup}
+          ${controlsMarkup + workspaceMarkup}
         </main>
         ${
           this.settingsOpen
@@ -1795,12 +1799,6 @@ class FretboardApp extends BaseElement {
     this.querySelector("[data-action='toggle-menu']").addEventListener("click", () => {
       this.navOpen = !this.navOpen;
       this.render();
-    });
-    this.querySelector("[data-action='settings']").addEventListener("click", () => {
-      this.navOpen = false;
-      this.settingsOpen = true;
-      this.render();
-      this.querySelector(".settings-modal button")?.focus();
     });
     this.querySelectorAll("[data-action='close-settings']").forEach((element) => {
       element.addEventListener("click", (event) => {
@@ -2421,8 +2419,6 @@ class CircleOfFifthsPanel extends BaseElement {
     }
     const selectedKey = getCircleKeyData(state.circleKey);
     const chords = getDiatonicChords(selectedKey);
-    const relativeMinor = { label: selectedKey.minor, root: normalizeNote(selectedKey.scale[5]), type: "Minor" };
-    const relatedChords = getCloselyRelatedKeyChords(selectedKey.major);
     const borrowedChords = getBorrowedChordOptions(selectedKey);
     this.innerHTML = `
       <section class="panel circle-panel">
@@ -2439,27 +2435,11 @@ class CircleOfFifthsPanel extends BaseElement {
             <div class="summary-block">
               <span>Major scale</span>
               <strong>${selectedKey.scale.map((note) => escapeHtml(note)).join(" ")}</strong>
-            </div>
-            <div class="summary-block">
-              <span>Relative minor</span>
-              <div class="summary-chords">${this.renderCircleChordButton(relativeMinor)}</div>
-            </div>
-            <div class="summary-block">
-              <span>Accidentals</span>
-              <strong>${escapeHtml(accidentalLabel(selectedKey))}</strong>
-            </div>
-            <div class="summary-block wide">
-              <span>Closely related</span>
-              <div class="summary-chords">${relatedChords.map((chord) => this.renderCircleChordButton(chord)).join("")}</div>
-            </div>
-            <div class="summary-block">
-              <span>Diatonic chords</span>
+              <span class="summary-subheading">Diatonic chords</span>
               <div class="chord-grid">
                 ${chords.map((item) => this.renderCircleChordButton({ label: item.chord, root: item.root, type: item.type, degree: item.degree })).join("")}
               </div>
-            </div>
-            <div class="summary-block">
-              <span>Borrowed/modal color</span>
+              <span class="summary-subheading">Borrowed/modal color</span>
               <div class="summary-chords">${borrowedChords.map((chord) => this.renderCircleChordButton(chord)).join("")}</div>
             </div>
           </div>
@@ -3024,13 +3004,11 @@ class FretboardView extends BaseElement {
     this.innerHTML = `
       <div class="fretboard-card">
         <div class="fretboard-toolbar">
-          <div class="fretboard-meta">
-            <strong>${escapeHtml(labelForTuning(tuning))}</strong>
-          </div>
           <div class="orientation-toggle" role="group" aria-label="Fretboard orientation">
             <button type="button" data-orientation="horizontal" aria-pressed="${orientation === "horizontal"}">Horizontal</button>
             <button type="button" data-orientation="vertical" aria-pressed="${orientation === "vertical"}">Vertical</button>
           </div>
+          <button type="button" data-action="settings" aria-haspopup="dialog">Settings</button>
         </div>
         <div class="fretboard-scroll" tabindex="0" aria-label="Scrollable fretboard">
           ${board}
