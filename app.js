@@ -3,7 +3,7 @@ const FLAT_DISPLAY = { "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb
 const NOTE_ALIASES = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#", "E#": "F", "B#": "C", Cb: "B", Fb: "E" };
 const STORAGE_KEY = "axe:v1";
 const FRET_OPTIONS = [12, 15, 17, 20, 22, 24];
-const MODES = ["all", "notes", "scales", "chords", "triads", "arpeggios", "palette", "identifier", "circle", "helper", "progression", "positions", "quiz"];
+const MODES = ["all", "notes", "scales", "chords", "triads", "arpeggios", "palette", "identifier", "circle", "helper", "positions", "quiz"];
 const MODE_LABELS = {
   all: "All",
   notes: "Notes",
@@ -15,7 +15,6 @@ const MODE_LABELS = {
   identifier: "Identifier",
   circle: "Circle",
   helper: "Helper",
-  progression: "Progression",
   positions: "Positions",
   quiz: "Quiz",
 };
@@ -1153,54 +1152,6 @@ function practiceScaleLabel(keyName, tonality, suggestion) {
     .replace("harmonic minor", `${root} harmonic minor`);
 }
 
-function supportedNumeralsForTonality(tonality) {
-  return PROGRESSION_NUMERALS[normalizeTonality(tonality)];
-}
-
-function sanitizeProgressionBuilder(builder = {}, accidental = "sharps") {
-  const key = normalizeCircleKey(builder.key || "C", accidental);
-  const tonality = normalizeTonality(builder.tonality);
-  const supported = supportedNumeralsForTonality(tonality);
-  const numerals = Array.isArray(builder.numerals) ? builder.numerals.filter((token) => supported.includes(token)) : [];
-  const fallbackNumerals = tonality === "minor" ? ["i", "VI", "VII", "i"] : defaultState.progressionBuilder.numerals;
-  const safeNumerals = numerals.length ? numerals : [...fallbackNumerals];
-  const focusedIndex = Math.max(0, Math.min(safeNumerals.length - 1, Number(builder.focusedIndex) || 0));
-  const savedProgressions = Array.isArray(builder.savedProgressions)
-    ? builder.savedProgressions
-        .filter((item) => item && Array.isArray(item.numerals))
-        .map((item) => {
-          const savedTonality = normalizeTonality(item.tonality);
-          const savedSupported = supportedNumeralsForTonality(savedTonality);
-          const savedNumerals = item.numerals.filter((token) => savedSupported.includes(token));
-          return {
-            id: item.id || uid(),
-            name: item.name || progressionName(item.key || "C", savedTonality, savedNumerals),
-            key: normalizeCircleKey(item.key || "C", accidental),
-            tonality: savedTonality,
-            numerals: savedNumerals.length ? savedNumerals : savedTonality === "minor" ? ["i", "VI", "VII"] : ["I", "V", "vi", "IV"],
-            createdAt: item.createdAt || new Date().toISOString(),
-          };
-        })
-    : [];
-  return { key, tonality, numerals: safeNumerals, focusedIndex, savedProgressions };
-}
-
-function progressionName(key, tonality, numerals) {
-  return `${normalizeCircleKey(key)} ${normalizeTonality(tonality)} \u00b7 ${numerals.join(" - ")}`;
-}
-
-function getProgressionContext(builder) {
-  const key = getCircleKeyData(builder.key);
-  const keyAccidental = key.type === "flats" ? "flats" : "sharps";
-  const scale = getScaleForTonality(key.major, builder.tonality, keyAccidental);
-  const accidental = scale.some((note) => note.includes("b")) ? "flats" : keyAccidental;
-  const chords = builder.numerals.map((token) => chordInfoForRoman(token, scale, builder.tonality, accidental));
-  const focusedIndex = Math.max(0, Math.min(chords.length - 1, builder.focusedIndex || 0));
-  const focusedNumeral = builder.numerals[focusedIndex];
-  const focusedChord = chords[focusedIndex];
-  return { key, accidental, scale, chords, focusedIndex, focusedNumeral, focusedChord };
-}
-
 function getPositionDefinition(positionLearning) {
   const system = POSITION_SYSTEMS[positionLearning.system] || POSITION_SYSTEMS.caged;
   const shape = CAGED_SHAPES[positionLearning.selectedShape] || CAGED_SHAPES.C;
@@ -1376,43 +1327,6 @@ function getPracticeSummary(mode, state, tuning = store.tuning) {
     mode === "arpeggios" ? `${root} ${quality.label} arpeggio \u00b7 ${inversion.label}` : `${root} ${quality.label} triad`;
   const detail = `Formula: ${formula} \u00b7 ${stringSet.label} \u00b7 Focus: frets ${range.start}-${range.end}`;
   return { title, detail, formula, range, root, quality, inversion, stringSet };
-}
-
-function progressionExplanation(builder) {
-  const { scale, focusedNumeral, focusedChord } = getProgressionContext(builder);
-  const functionName = getChordFunction(focusedNumeral);
-  const chordTones = notesFromPattern(focusedChord.root, CHORDS[focusedChord.type] || CHORDS.Major);
-  const keyNotes = scale.map(normalizeNote);
-  const passing = keyNotes.filter((note) => !chordTones.includes(note)).slice(0, 4);
-  const arc = builder.numerals.join("-");
-  const overview =
-    arc === "I-V-vi-IV"
-      ? "This starts at home, moves to dominant tension, shifts to the relative minor, then lands on the IV chord for a broad, familiar pop sound."
-      : `This progression moves through ${[...new Set(builder.numerals.map(getChordFunction))].join(", ")} functions, giving you a clear harmonic path to write over.`;
-  const focus =
-    functionName === "dominant"
-      ? `The focused chord is ${focusedNumeral}, which creates tension and usually wants to resolve back to I.`
-      : functionName === "tonic"
-        ? `The focused chord is ${focusedNumeral}, which feels settled and anchors the key.`
-        : functionName === "relative"
-          ? `The focused chord is ${focusedNumeral}, which brings relative-minor colour while staying close to home.`
-          : functionName === "colour/borrowed"
-            ? `The focused chord is ${focusedNumeral}, which adds borrowed colour outside the plain diatonic set.`
-            : `The focused chord is ${focusedNumeral}, which sets up motion towards stronger resolution points.`;
-  return {
-    overview,
-    focus,
-    melody: `Suggested melody notes over this chord: ${chordTones.join(", ")}.`,
-    passing: `Good passing notes from the key: ${(passing.length ? passing : keyNotes).join(", ")}.`,
-  };
-}
-
-function nextChordSuggestions(builder) {
-  const current = builder.numerals[builder.focusedIndex] || builder.numerals[0];
-  const { degree } = splitRomanToken(current);
-  const supported = supportedNumeralsForTonality(builder.tonality);
-  const direct = NEXT_CHORD_SUGGESTIONS[builder.tonality]?.[current] || NEXT_CHORD_SUGGESTIONS[builder.tonality]?.[degree] || [];
-  return direct.filter((token) => supported.includes(token));
 }
 
 function sanitizeChordIdentifier(identifier = {}, tuning, frets) {
@@ -1660,13 +1574,6 @@ const defaultState = {
     complexity: "Simple",
     focusChord: null,
   },
-  progressionBuilder: {
-    key: "C",
-    tonality: "major",
-    numerals: ["I", "V", "vi", "IV"],
-    focusedIndex: 0,
-    savedProgressions: [],
-  },
   positionLearning: {
     rootNote: "C",
     tonality: "major",
@@ -1735,7 +1642,6 @@ class Store extends EventTarget {
         complexity: normalizeHelperComplexity(state.chordHelper?.complexity),
         focusChord: sanitizeFocusChord(state.chordHelper?.focusChord),
       },
-      progressionBuilder: sanitizeProgressionBuilder(state.progressionBuilder, state.accidental),
       positionLearning: sanitizePositionLearning(state.positionLearning),
       quiz: {
         ...defaultState.quiz,
@@ -1824,6 +1730,24 @@ class FretboardApp extends BaseElement {
   render() {
     const { theme, accidental, mode } = store.state;
     const modeLabel = MODE_LABELS[mode] || "Axe";
+    const controlsMarkup = `
+      <section class="controls" aria-label="Fretboard controls">
+        <note-filter></note-filter>
+        <scale-panel></scale-panel>
+        <chord-panel></chord-panel>
+        <triad-panel></triad-panel>
+        <arpeggio-panel></arpeggio-panel>
+        <chord-palette-panel></chord-palette-panel>
+        <chord-identifier-panel></chord-identifier-panel>
+        <circle-of-fifths-panel></circle-of-fifths-panel>
+        <chord-helper-panel></chord-helper-panel>
+        <position-panel></position-panel>
+        <quiz-panel></quiz-panel>
+      </section>`;
+    const workspaceMarkup = `
+      <section class="workspace" aria-label="Fretboard">
+        <fretboard-view></fretboard-view>
+      </section>`;
     this.innerHTML = `
       <div class="app-shell">
         <header class="topbar">
@@ -1845,23 +1769,7 @@ class FretboardApp extends BaseElement {
           </div>
         </header>
         <main class="content">
-          <section class="controls" aria-label="Fretboard controls">
-            <note-filter></note-filter>
-            <scale-panel></scale-panel>
-            <chord-panel></chord-panel>
-            <triad-panel></triad-panel>
-            <arpeggio-panel></arpeggio-panel>
-            <chord-palette-panel></chord-palette-panel>
-            <chord-identifier-panel></chord-identifier-panel>
-            <circle-of-fifths-panel></circle-of-fifths-panel>
-            <chord-helper-panel></chord-helper-panel>
-            <progression-builder-panel></progression-builder-panel>
-            <position-panel></position-panel>
-            <quiz-panel></quiz-panel>
-          </section>
-          <section class="workspace" aria-label="Fretboard">
-            <fretboard-view></fretboard-view>
-          </section>
+          ${workspaceMarkup + controlsMarkup}
         </main>
         ${
           this.settingsOpen
@@ -2250,6 +2158,10 @@ class ArpeggioPanel extends PracticePatternPanel {
   get qualities() {
     return ARPEGGIO_QUALITIES;
   }
+
+  get showExplanation() {
+    return false;
+  }
 }
 
 class ChordPalettePanel extends BaseElement {
@@ -2429,54 +2341,29 @@ class ChordIdentifierPanel extends BaseElement {
     const tuning = store.tuning;
     const identifier = state.chordIdentifier;
     const detection = detectChord(identifier.selectedShape, tuning, state.accidental);
-    const selectedNoteLabels = detection.selectedNotes.map((item) => displayNote(item.note, state.accidental));
     const best = detection.best;
     this.innerHTML = `
       <section class="panel chord-identifier-panel">
         <h2>Chord Identifier</h2>
-        <div class="identifier-results">
-          <div class="summary-block">
-            <span>${detection.exact ? "Best match" : "Result"}</span>
-            <strong>${escapeHtml(detection.title)}</strong>
-            <p>${escapeHtml(detection.explanation)}</p>
-          </div>
-          <div class="identifier-facts">
-            <div class="summary-block">
-              <span>Notes</span>
-              <strong>${selectedNoteLabels.length ? escapeHtml(selectedNoteLabels.join(", ")) : "None"}</strong>
-            </div>
-            <div class="summary-block">
-              <span>Bass note</span>
-              <strong>${detection.bassNote ? escapeHtml(displayNote(detection.bassNote, state.accidental)) : "None"}</strong>
-            </div>
-            <div class="summary-block">
-              <span>Chord tones</span>
-              <strong>${best ? escapeHtml(chordTonesForMatch(best, state.accidental).join(", ")) : "None"}</strong>
-            </div>
-            <div class="summary-block">
-              <span>Intervals</span>
-              <strong>${best ? escapeHtml(intervalLabelsForMatch(best).join(", ")) : "None"}</strong>
-            </div>
-          </div>
+        <div class="summary-block identifier-results">
+          <span>${detection.exact ? "Best match" : "Result"}</span>
+          <strong>${escapeHtml(detection.title)}</strong>
+          <p>${escapeHtml(detection.explanation)}</p>
           ${
             detection.alternatives.length
               ? `
-                <div class="identifier-alternatives">
-                  <strong>Possible matches</strong>
-                  <ol>
-                    ${detection.alternatives.map((match) => `<li>${escapeHtml(match.label)}</li>`).join("")}
-                  </ol>
-                </div>
+                <strong>Possible matches</strong>
+                <ol>
+                  ${detection.alternatives.map((match) => `<li>${escapeHtml(match.label)}</li>`).join("")}
+                </ol>
               `
               : ""
           }
           ${
             !detection.exact && best
               ? `
-                <div class="identifier-alternatives">
-                  <strong>Closest possibility detail</strong>
-                  <p>Missing: ${escapeHtml(best.missing.map((interval) => INTERVAL_LABELS[interval] || String(interval)).join(", ") || "none")}. Extra: ${escapeHtml(best.extra.map((interval) => INTERVAL_LABELS[interval] || String(interval)).join(", ") || "none")}.</p>
-                </div>
+                <strong>Closest possibility detail</strong>
+                <p>Missing: ${escapeHtml(best.missing.map((interval) => INTERVAL_LABELS[interval] || String(interval)).join(", ") || "none")}. Extra: ${escapeHtml(best.extra.map((interval) => INTERVAL_LABELS[interval] || String(interval)).join(", ") || "none")}.</p>
               `
               : ""
           }
@@ -2553,19 +2440,17 @@ class CircleOfFifthsPanel extends BaseElement {
               <span>Major scale</span>
               <strong>${selectedKey.scale.map((note) => escapeHtml(note)).join(" ")}</strong>
             </div>
-            <div class="summary-grid">
-              <div class="summary-block">
-                <span>Relative minor</span>
-                <div class="summary-chords">${this.renderCircleChordButton(relativeMinor)}</div>
-              </div>
-              <div class="summary-block">
-                <span>Accidentals</span>
-                <strong>${escapeHtml(accidentalLabel(selectedKey))}</strong>
-              </div>
-              <div class="summary-block wide">
-                <span>Closely related</span>
-                <div class="summary-chords">${relatedChords.map((chord) => this.renderCircleChordButton(chord)).join("")}</div>
-              </div>
+            <div class="summary-block">
+              <span>Relative minor</span>
+              <div class="summary-chords">${this.renderCircleChordButton(relativeMinor)}</div>
+            </div>
+            <div class="summary-block">
+              <span>Accidentals</span>
+              <strong>${escapeHtml(accidentalLabel(selectedKey))}</strong>
+            </div>
+            <div class="summary-block wide">
+              <span>Closely related</span>
+              <div class="summary-chords">${relatedChords.map((chord) => this.renderCircleChordButton(chord)).join("")}</div>
             </div>
             <div class="summary-block">
               <span>Diatonic chords</span>
@@ -3000,10 +2885,9 @@ class PositionPanel extends BaseElement {
       return;
     }
     const positionLearning = state.positionLearning;
-    const { system, shape, box, active } = getPositionDefinition(positionLearning);
+    const { system } = getPositionDefinition(positionLearning);
     const isCaged = system.group === "caged";
     const isScale = system.group === "scale";
-    const summary = getPositionSummary(state);
     this.innerHTML = `
       <section class="panel position-panel">
         <h2>Positions</h2>
@@ -3065,20 +2949,6 @@ class PositionPanel extends BaseElement {
           <button type="button" data-toggle="showOnlyPosition" aria-pressed="${positionLearning.showOnlyPosition}">Show only this position</button>
           <button type="button" data-toggle="showRoots" aria-pressed="${positionLearning.showRoots}">Show roots</button>
           <button type="button" data-toggle="showIntervals" aria-pressed="${positionLearning.showIntervals}">Show intervals</button>
-        </div>
-        <div class="explanation-grid position-explanation">
-          <div class="summary-block">
-            <span>${escapeHtml(summary.title)}</span>
-            <p>${escapeHtml(system.description)} ${escapeHtml(active.description)}</p>
-          </div>
-          <div class="summary-block">
-            <span>Try this</span>
-            <p>${escapeHtml(active.tryThis)}</p>
-          </div>
-          <div class="summary-block wide">
-            <span>Formula and focus</span>
-            <p>${escapeHtml(summary.detail)}. ${escapeHtml(active.usage)}</p>
-          </div>
         </div>
       </section>
     `;
@@ -3270,7 +3140,6 @@ class FretboardView extends BaseElement {
         : state.mode === "identifier"
           ? true
           : state.mode === "all" || visible.has(pos.note) || state.mode === "quiz";
-    const progressionFocus = state.mode === "progression" ? getProgressionContext(state.progressionBuilder).focusedChord : null;
     const focusedRoot =
       state.mode === "helper"
         ? state.chordHelper.focusChord?.root
@@ -3278,7 +3147,7 @@ class FretboardView extends BaseElement {
           ? state.circleFocusChord?.root
           : state.mode === "palette"
             ? state.chordPalette.focusChord?.root || state.chordPalette.key
-            : progressionFocus?.root;
+            : null;
     const isRoot =
       (state.mode === "positions" && state.positionLearning.showRoots && positionMarker?.root) ||
       (isPracticeMode && practicePattern.showRoots && practiceMarker?.root) ||
@@ -3365,10 +3234,6 @@ function getVisibleNotes(state) {
     const { root, type } = state.circleFocusChord;
     return new Set(notesFromPattern(root, CHORDS[type] || CHORDS.Major));
   }
-  if (state.mode === "progression") {
-    const { focusedChord } = getProgressionContext(state.progressionBuilder);
-    return new Set(notesFromPattern(focusedChord.root, CHORDS[focusedChord.type] || CHORDS.Major));
-  }
   return new Set(NOTES);
 }
 
@@ -3393,13 +3258,6 @@ function getModeLabel(state, tuning = store.tuning) {
   if (state.mode === "helper") {
     const focus = state.chordHelper.focusChord;
     return focus ? `Showing ${focus.label}` : `${state.chordHelper.key} ${state.chordHelper.tonality} progressions`;
-  }
-  if (state.mode === "progression") {
-    const { key, focusedNumeral, focusedChord, accidental } = getProgressionContext(state.progressionBuilder);
-    const tones = notesFromPattern(focusedChord.root, CHORDS[focusedChord.type] || CHORDS.Major)
-      .map((note) => displayNote(note, accidental))
-      .join(" ");
-    return `${key.major} ${state.progressionBuilder.tonality} progression \u00b7 ${focusedNumeral} = ${focusedChord.label}. Chord tones: ${tones}`;
   }
   if (state.mode === "positions") return getPositionSummary(state, tuning).title;
   if (state.mode === "quiz") return state.quiz.active ? `Find ${displayNote(state.quiz.questionNote, state.accidental)}` : "Quiz stopped";
@@ -3650,6 +3508,5 @@ customElements.define("chord-palette-panel", ChordPalettePanel);
 customElements.define("chord-identifier-panel", ChordIdentifierPanel);
 customElements.define("circle-of-fifths-panel", CircleOfFifthsPanel);
 customElements.define("chord-helper-panel", ChordHelperPanel);
-customElements.define("progression-builder-panel", ProgressionBuilderPanel);
 customElements.define("position-panel", PositionPanel);
 customElements.define("quiz-panel", QuizPanel);
