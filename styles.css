@@ -1429,49 +1429,6 @@ chord-palette-panel {
   font-size: 0.84rem;
 }
 
-.progression-controls {
-  grid-template-columns: repeat(2, minmax(160px, 1fr));
-}
-
-.builder-chord-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
-  gap: 0.55rem;
-  margin-top: 0.75rem;
-}
-
-.builder-chord-card {
-  display: grid;
-  justify-items: start;
-  gap: 0.18rem;
-  min-height: 5.25rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  padding: 0.65rem;
-  color: var(--text);
-  text-align: left;
-}
-
-.builder-chord-card[aria-current="true"] {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent), var(--surface) 84%);
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-
-.builder-chord-card b {
-  font-size: 1rem;
-}
-
-.builder-chord-card span {
-  font-weight: 850;
-}
-
-.builder-chord-card small {
-  color: var(--muted);
-  font-weight: 750;
-}
-
 .builder-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1484,19 +1441,10 @@ chord-palette-panel {
   min-width: min(12rem, 100%);
 }
 
-.suggestion-row,
 .saved-progressions {
   display: grid;
   gap: 0.45rem;
   margin-top: 0.75rem;
-}
-
-.suggestion-row > strong {
-  font-size: 0.85rem;
-}
-
-.suggestion-row button {
-  min-height: 2.2rem;
 }
 
 .explanation-grid {

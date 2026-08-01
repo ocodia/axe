@@ -1,26 +1,11 @@
 import { TunerAudioSession, centsBetween, frequencyToNote, midiFrequency } from "./tuner-service.js";
+import { FEATURE_REGISTRY, MODE_LABELS, MODES, getFeatureControlTags } from "./feature-registry.js";
+import { loadStoredState, makeId, saveStoredState } from "./storage.js";
 
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const FLAT_DISPLAY = { "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb" };
 const NOTE_ALIASES = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#", "E#": "F", "B#": "C", Cb: "B", Fb: "E" };
-const STORAGE_KEY = "axe:v1";
 const FRET_OPTIONS = [12, 15, 17, 20, 22, 24];
-const MODES = ["all", "notes", "scales", "chords", "triads", "arpeggios", "palette", "identifier", "circle", "helper", "positions", "quiz", "tuner"];
-const MODE_LABELS = {
-  all: "All",
-  notes: "Notes",
-  scales: "Scales",
-  chords: "Chords",
-  triads: "Triads",
-  arpeggios: "Arpeggios",
-  palette: "Palette",
-  identifier: "Identifier",
-  circle: "Circle",
-  helper: "Helper",
-  positions: "Positions",
-  quiz: "Quiz",
-  tuner: "Tuner",
-};
 const MARKER_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
 const DOUBLE_MARKERS = new Set([12, 24]);
 const NOTE_COLORS = {
@@ -837,19 +822,15 @@ function getChordPaletteRows(chordPalette, accidental = "sharps") {
 }
 
 function saveState(state) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  saveStoredState(state);
 }
 
 function loadState() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-  } catch {
-    return {};
-  }
+  return loadStoredState();
 }
 
 function uid() {
-  return `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return makeId("custom");
 }
 
 function clampFrets(value) {
@@ -1619,6 +1600,9 @@ class Store extends EventTarget {
   }
 
   sanitize(state) {
+    // Drop fields from capabilities that are no longer registered before the
+    // sanitized state is persisted again.
+    const { progressionBuilder: _removedProgressionBuilder, ...persistedState } = state;
     const customTunings = Array.isArray(state.customTunings)
       ? state.customTunings.map((tuning) => ({
           id: tuning.id || uid(),
@@ -1631,7 +1615,7 @@ class Store extends EventTarget {
     const tuning = groupedTunings(customTunings).find((item) => item.id === state.selectedTuningId) || PRESET_TUNINGS[0];
     return {
       ...defaultState,
-      ...state,
+      ...persistedState,
       selectedTuningId: tuning.id,
       customTunings,
       frets: clampFrets(state.frets || tuning.defaultFrets || 22),
@@ -1753,19 +1737,10 @@ class FretboardApp extends BaseElement {
   render() {
     const { theme, accidental, mode } = store.state;
     const modeLabel = MODE_LABELS[mode] || "Axe";
+    const controlMarkup = getFeatureControlTags(mode).map((tagName) => `<${tagName}></${tagName}>`).join("");
     const controlsMarkup = `
       <section class="controls" aria-label="Fretboard controls">
-        <note-filter></note-filter>
-        <scale-panel></scale-panel>
-        <chord-panel></chord-panel>
-        <triad-panel></triad-panel>
-        <arpeggio-panel></arpeggio-panel>
-        <chord-palette-panel></chord-palette-panel>
-        <chord-identifier-panel></chord-identifier-panel>
-        <circle-of-fifths-panel></circle-of-fifths-panel>
-        <chord-helper-panel></chord-helper-panel>
-        <position-panel></position-panel>
-        <quiz-panel></quiz-panel>
+        ${controlMarkup}
       </section>`;
     const workspaceMarkup = `
       <section class="workspace" aria-label="Fretboard">
@@ -2089,7 +2064,7 @@ class TunerPanel extends BaseElement {
 
 class ModeSelector extends BaseElement {
   render() {
-    const modes = MODES.map((mode) => [mode, MODE_LABELS[mode]]);
+    const modes = [["all", MODE_LABELS.all], ...FEATURE_REGISTRY.map(({ id, label }) => [id, label])];
     this.innerHTML = `
       <div class="segmented" role="group" aria-label="Display mode">
         ${modes.map(([value, label]) => `<button type="button" data-mode="${value}" aria-pressed="${store.state.mode === value}">${label}</button>`).join("")}
@@ -2814,6 +2789,7 @@ class ChordHelperPanel extends BaseElement {
   }
 }
 
+/* Removed from the shipped registry; retained temporarily as a migration note for older saved-state references.
 class ProgressionBuilderPanel extends BaseElement {
   constructor() {
     super();
@@ -3034,6 +3010,7 @@ class ProgressionBuilderPanel extends BaseElement {
       });
   }
 }
+*/
 
 class PositionPanel extends BaseElement {
   render() {

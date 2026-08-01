@@ -33,7 +33,12 @@ The app is local-first and runs entirely in the browser using plain HTML, modern
 - `index.html` - app shell
 - `styles.css` - responsive UI and theme styling
 - `app.js` - state, utilities, Web Components, quiz logic
+- `feature-registry.js` - authoritative capability and mode registry
+- `storage.js` - safe local-storage boundary and id generation
 - `tuner-service.js` - microphone session and YIN pitch detection
+- `docs/ARCHITECTURE.md` - extension and state architecture for agents
+- `docs/TESTING.md` - no-build browser testing workflow
+- `tests/` - dependency-free browser smoke tests
 - `manifest.webmanifest` - PWA metadata
 - `service-worker.js` - offline app-shell cache
 
@@ -72,6 +77,10 @@ axe:v1
 ```
 
 Clearing site data in the browser will reset saved settings.
+
+## Extending Axe
+
+Feature navigation and control rendering are driven by `feature-registry.js`. New capabilities must register there, own their state validation, emit intent events to the store, add browser smoke coverage, and update the service-worker app shell. See `docs/ARCHITECTURE.md` for the complete workflow.
 
 ## Position Learning
 
