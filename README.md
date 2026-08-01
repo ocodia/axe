@@ -25,6 +25,7 @@ The app is local-first and runs entirely in the browser using plain HTML, modern
 - Chord progression helper with Roman numerals, chord functions, mood filters, and practice-scale suggestions
 - Simple quiz mode with immediate note reveal and scoring
 - Microphone tuner mode with automatic and manual string tuning
+- Karplus–Strong playback for notes, open strings, guitar chords, arpeggios, and strums
 - Offline support through a service worker
 - Installable PWA manifest
 

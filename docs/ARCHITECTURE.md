@@ -7,7 +7,9 @@ Axe is a no-build, local-first PWA. The browser loads native ES modules directly
 - `app.js` is the composition root. It wires the store, shared helpers, Web Components, and feature registry together.
 - `feature-registry.js` is the capability contract. Mode navigation and control visibility must derive from it rather than maintaining parallel lists.
 - `storage.js` owns the `axe:v1` persistence boundary and must tolerate unavailable or malformed storage.
-- `tuner-service.js` contains microphone/audio and pitch-detection code only. It must remain usable without rendering code.
+- `tuner-service.js` contains microphone and pitch-detection code only. It must remain usable without rendering code.
+- `audio-service.js` owns transient plucked-string synthesis and must remain independent of rendering and persistence.
+- `voicing-service.js` contains pure guitar voicing selection and fallback calculations.
 - Feature logic should be kept pure where possible. New calculations belong in a small module with exported functions; UI components should translate state into DOM and emit intent events.
 - `styles.css` is shared presentation. Feature-specific selectors should be namespaced by the component or feature class.
 

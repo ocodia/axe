@@ -1,12 +1,14 @@
-const CACHE_NAME = "axe-v14";
+const CACHE_NAME = "axe-v16";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=14",
-  "./app.js?v=14",
+  "./styles.css?v=16",
+  "./app.js?v=16",
   "./feature-registry.js",
   "./storage.js",
   "./tuner-service.js",
+  "./audio-service.js",
+  "./voicing-service.js",
   "./manifest.webmanifest",
 ];
 

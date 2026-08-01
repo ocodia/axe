@@ -1,6 +1,8 @@
 import { TunerAudioSession, centsBetween, frequencyToNote, midiFrequency } from "./tuner-service.js";
 import { FEATURE_REGISTRY, MODE_LABELS, MODES, getFeatureControlTags } from "./feature-registry.js";
 import { loadStoredState, makeId, saveStoredState } from "./storage.js";
+import { PluckedStringAudioService } from "./audio-service.js";
+import { getGuitarVoicing } from "./voicing-service.js";
 
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const FLAT_DISPLAY = { "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb" };
@@ -685,6 +687,81 @@ function targetMidisForTuning(tuning) {
     const octaveBase = Math.floor(base / 12) * 12;
     const candidates = [octaveBase + pitchClass - 12, octaveBase + pitchClass, octaveBase + pitchClass + 12];
     return candidates.reduce((closest, candidate) => Math.abs(candidate - base) < Math.abs(closest - base) ? candidate : closest, candidates[0]);
+  });
+}
+
+function rootMidiForTuning(root, targetMidis) {
+  const openMidi = targetMidis[0] || 40;
+  const pitchClass = NOTES.indexOf(normalizeNote(root));
+  return openMidi + ((pitchClass - openMidi) % 12 + 12) % 12;
+}
+
+function chordTypeFromPractice(pattern, qualities) {
+  const quality = qualities[pattern.quality];
+  if (!quality) return "Major";
+  return {
+    major: "Major",
+    minor: "Minor",
+    diminished: "Diminished",
+    augmented: "Augmented",
+    maj7: "Major 7",
+    dom7: "Dominant 7",
+    m7: "Minor 7",
+    m7b5: "Half-Diminished",
+  }[pattern.quality] || "Major";
+}
+
+function voicingForChord(root, type, tuning = store?.tuning) {
+  if (!tuning) return [];
+  const targetMidis = targetMidisForTuning(tuning);
+  return getGuitarVoicing({
+    targetMidis,
+    rootMidi: rootMidiForTuning(root, targetMidis),
+    intervals: CHORDS[type] || CHORDS.Major,
+    type,
+  });
+}
+
+function currentPlaybackVoicing(state) {
+  if (state.mode === "identifier") {
+    return state.chordIdentifier.selectedShape.map((item) => ({
+      ...item,
+      midi: item.muted || item.fret === null ? null : targetMidisForTuning(store.tuning)[item.stringIndex] + item.fret,
+    }));
+  }
+  if (state.mode === "chords") return voicingForChord(state.rootNote, state.selectedChord);
+  if (state.mode === "triads") return voicingForChord(state.triadPractice.rootNote, chordTypeFromPractice(state.triadPractice, TRIAD_QUALITIES));
+  if (state.mode === "arpeggios") return voicingForChord(state.arpeggioPractice.rootNote, chordTypeFromPractice(state.arpeggioPractice, ARPEGGIO_QUALITIES));
+  if (state.mode === "palette" && state.chordPalette.focusChord) {
+    const chord = state.chordPalette.focusChord;
+    return voicingForChord(chord.root, chord.type);
+  }
+  if (state.mode === "helper" && state.chordHelper.focusChord) {
+    const chord = state.chordHelper.focusChord;
+    return voicingForChord(chord.root, chord.type);
+  }
+  if (state.mode === "circle" && state.circleFocusChord) {
+    const chord = state.circleFocusChord;
+    return voicingForChord(chord.root, chord.type);
+  }
+  return [];
+}
+
+function renderPlaybackControls(label = "Chord", disabled = false) {
+  const disabledAttribute = disabled ? "disabled" : "";
+  return `
+    <div class="playback-controls" role="group" aria-label="${escapeHtml(label)} playback">
+      <button type="button" data-playback="chord" ${disabledAttribute}>Play ${escapeHtml(label.toLowerCase())}</button>
+      <button type="button" data-playback="arpeggio" ${disabledAttribute}>Arpeggiate</button>
+      <button type="button" data-playback="down-strum" ${disabledAttribute}>Down strum</button>
+      <button type="button" data-playback="up-strum" ${disabledAttribute}>Up strum</button>
+    </div>
+  `;
+}
+
+function bindPlaybackControls(element) {
+  element.querySelectorAll("[data-playback]").forEach((button) => {
+    button.addEventListener("click", () => element.emit("playback-action", { action: button.dataset.playback }));
   });
 }
 
@@ -1673,6 +1750,7 @@ class Store extends EventTarget {
 }
 
 const store = new Store();
+const playbackService = new PluckedStringAudioService();
 
 class BaseElement extends HTMLElement {
   connectedCallback() {
@@ -1725,6 +1803,19 @@ class FretboardApp extends BaseElement {
     });
     this.addEventListener("quiz-action", (event) => handleQuizAction(event.detail.action, event.detail.position));
     this.addEventListener("identifier-action", (event) => handleIdentifierAction(event.detail.action, event.detail));
+    this.addEventListener("playback-action", async (event) => {
+      const { action, midi } = event.detail;
+      try {
+        if (action === "note" && Number.isFinite(midi)) {
+          await playbackService.playNote(midi);
+          return;
+        }
+        const voicing = currentPlaybackVoicing(store.state);
+        await playbackService.playVoicing(voicing, action);
+      } catch (_error) {
+        // Audio is an enhancement; unsupported or blocked audio must not break the trainer.
+      }
+    });
     this.addEventListener("click", (event) => {
       if (!event.target.closest("[data-action='settings']")) return;
       this.navOpen = false;
@@ -2097,6 +2188,7 @@ class NoteFilter extends BaseElement {
         const selected = new Set(store.state.selectedNotes);
         selected.has(note) ? selected.delete(note) : selected.add(note);
         this.emit("app-update", { selectedNotes: selected.size ? [...selected] : [note] });
+        this.emit("playback-action", { action: "note", midi: 60 + NOTES.indexOf(note) });
       });
     });
   }
@@ -2149,10 +2241,12 @@ class ChordPanel extends BaseElement {
               .join("")}</select>
           </label>
         </div>
+        ${renderPlaybackControls()}
       </section>
     `;
     this.querySelector("[name='root']").addEventListener("change", (event) => this.emit("app-update", { rootNote: event.target.value }));
     this.querySelector("[name='chord']").addEventListener("change", (event) => this.emit("app-update", { selectedChord: event.target.value }));
+    bindPlaybackControls(this);
   }
 }
 
@@ -2253,6 +2347,7 @@ class PracticePatternPanel extends BaseElement {
               </div>`
             : ""
         }
+        ${renderPlaybackControls(this.title)}
       </section>
     `;
     this.querySelectorAll("select").forEach((select) => {
@@ -2276,6 +2371,7 @@ class PracticePatternPanel extends BaseElement {
         this.emit("app-update", { [this.stateKey]: { ...store.state[this.stateKey], [key]: !store.state[this.stateKey][key] } });
       });
     });
+    bindPlaybackControls(this);
   }
 }
 
@@ -2377,6 +2473,7 @@ class ChordPalettePanel extends BaseElement {
               .join("")}
           </div>
         </div>
+        ${palette.focusChord ? renderPlaybackControls("Chord") : ""}
       </section>
       ${palette.customizeOpen ? this.renderCustomizeModal(palette) : ""}
     `;
@@ -2401,6 +2498,7 @@ class ChordPalettePanel extends BaseElement {
         });
       });
     });
+    bindPlaybackControls(this);
     this.querySelectorAll("[data-palette-family]").forEach((checkbox) => {
       checkbox.addEventListener("change", () => {
         const selected = [...this.querySelectorAll("[data-palette-family]:checked")].map((item) => item.dataset.paletteFamily);
@@ -2524,6 +2622,7 @@ class ChordIdentifierPanel extends BaseElement {
           <button type="button" data-action="clear-shape">Clear shape</button>
           <button type="button" class="primary" data-action="save-shape" ${detection.selectedNotes.length ? "" : "disabled"}>Save shape</button>
         </div>
+        ${renderPlaybackControls("Shape", !detection.selectedNotes.length)}
         <div class="saved-progressions identifier-saved">
           <strong>Saved shapes</strong>
           ${
@@ -2560,6 +2659,7 @@ class ChordIdentifierPanel extends BaseElement {
     this.querySelectorAll("[data-delete-shape]").forEach((button) => {
       button.addEventListener("click", () => this.emit("identifier-action", { action: "delete", id: button.dataset.deleteShape }));
     });
+    bindPlaybackControls(this);
   }
 }
 
@@ -2597,6 +2697,7 @@ class CircleOfFifthsPanel extends BaseElement {
             </div>
           </div>
         </div>
+        ${state.circleFocusChord ? renderPlaybackControls("Chord") : ""}
       </section>
     `;
     this.querySelectorAll("[data-circle-key]").forEach((node) => {
@@ -2633,6 +2734,7 @@ class CircleOfFifthsPanel extends BaseElement {
         });
       });
     });
+    bindPlaybackControls(this);
   }
 
   renderCircleChordButton(chord) {
@@ -2715,12 +2817,14 @@ class ChordHelperPanel extends BaseElement {
         <div class="progression-list">
           ${suggestions.map((suggestion) => this.renderSuggestion(suggestion, key, scale, helper.tonality)).join("")}
         </div>
+        ${helper.focusChord ? renderPlaybackControls("Chord") : ""}
       </section>
     `;
     this.querySelector("[name='helperKey']").addEventListener("change", (event) => this.updateHelper({ key: event.target.value }));
     this.querySelector("[name='helperTonality']").addEventListener("change", (event) => this.updateHelper({ tonality: event.target.value }));
     this.querySelector("[name='helperStyle']").addEventListener("change", (event) => this.updateHelper({ style: event.target.value }));
     this.querySelector("[name='helperComplexity']").addEventListener("change", (event) => this.updateHelper({ complexity: event.target.value }));
+    bindPlaybackControls(this);
   }
 
   renderSuggestion(suggestion, key, scale, tonality) {
@@ -3175,17 +3279,28 @@ class FretboardView extends BaseElement {
     });
     this.querySelectorAll("[data-position]").forEach((button) => {
       button.addEventListener("click", () => {
+        const [stringValue, fretValue] = button.dataset.position.split(":").map(Number);
         if (store.state.mode === "identifier") {
           this.emit("identifier-action", { action: "select", position: button.dataset.position });
+          this.emit("playback-action", { action: "note", midi: targetMidisForTuning(store.tuning)[stringValue] + fretValue });
           return;
         }
+        if (store.state.mode !== "quiz") this.emit("playback-action", { action: "note", midi: targetMidisForTuning(store.tuning)[stringValue] + fretValue });
         this.emit("quiz-action", { action: "select", position: button.dataset.position });
       });
     });
+    this.querySelectorAll("[data-open-string]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (store.state.mode !== "quiz") this.emit("playback-action", { action: "note", midi: targetMidisForTuning(store.tuning)[Number(button.dataset.openString)] });
+        if (store.state.mode === "identifier") this.emit("identifier-action", { action: "toggle-string", stringIndex: Number(button.dataset.openString) });
+      });
+    });
     this.querySelectorAll("[data-identifier-string]").forEach((button) => {
-      button.addEventListener("click", () =>
-        this.emit("identifier-action", { action: "toggle-string", stringIndex: Number(button.dataset.identifierString) }),
-      );
+      button.addEventListener("click", () => {
+        const stringIndex = Number(button.dataset.identifierString);
+        this.emit("identifier-action", { action: "toggle-string", stringIndex });
+        this.emit("playback-action", { action: "note", midi: targetMidisForTuning(store.tuning)[stringIndex] });
+      });
     });
   }
 
@@ -3244,7 +3359,7 @@ class FretboardView extends BaseElement {
     if (state.mode === "identifier") {
       return `<button type="button" class="string-name identifier-headstock ${openSelected ? "open-selected" : ""} ${mutedSelected ? "muted-selected" : ""}" data-identifier-string="${row.stringIndex}" aria-label="${escapeHtml(stringAria)}" aria-pressed="${openSelected || mutedSelected}">${escapeHtml(stringLabel)}</button>`;
     }
-    return `<div class="string-name" aria-label="${escapeHtml(stringAria)}">${escapeHtml(displayNote(row.openNote, state.accidental))}</div>`;
+    return `<button type="button" class="string-name" data-open-string="${row.stringIndex}" aria-label="${escapeHtml(stringAria)}; play open string">${escapeHtml(displayNote(row.openNote, state.accidental))}</button>`;
   }
 
   renderMarkerCell(fret) {

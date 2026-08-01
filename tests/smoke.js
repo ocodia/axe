@@ -1,6 +1,8 @@
 import { FEATURE_REGISTRY, MODES, MODE_LABELS, getFeatureControlTags } from "../feature-registry.js";
 import { loadStoredState, makeId, saveStoredState, STORAGE_KEY } from "../storage.js";
 import { centsBetween, frequencyToNote, midiFrequency } from "../tuner-service.js";
+import { createKarplusStrongBuffer, midiToFrequency } from "../audio-service.js";
+import { getGuitarVoicing } from "../voicing-service.js";
 
 const results = document.querySelector("#results");
 const summary = document.querySelector("#summary");
@@ -49,11 +51,38 @@ test("pitch helpers agree at concert A", () => {
   assert(Math.abs(centsBetween(440, 440)) < 0.0001, "zero cents mismatch");
 });
 
+test("playback synthesis and voicing helpers are deterministic enough to validate", () => {
+  assert(midiToFrequency(69) === 440, "playback A4 frequency mismatch");
+  const buffers = [];
+  const context = {
+    sampleRate: 44100,
+    createBuffer: (_channels, length, sampleRate) => {
+      const data = new Float32Array(length);
+      const buffer = { sampleRate, getChannelData: () => data };
+      buffers.push(buffer);
+      return buffer;
+    },
+  };
+  const buffer = createKarplusStrongBuffer(context, 110, 0.1);
+  assert(buffers.length === 1 && buffer.getChannelData().some((sample) => Number.isFinite(sample) && sample !== 0), "empty pluck buffer");
+  const sustainedBuffer = createKarplusStrongBuffer(context, 110);
+  assert(sustainedBuffer.getChannelData().length >= context.sampleRate * 3, "default pluck sustain is too short");
+  const voicing = getGuitarVoicing({
+    targetMidis: [40, 45, 50, 55, 59, 64],
+    rootMidi: 48,
+    intervals: [0, 4, 7],
+    type: "Major",
+  });
+  assert(voicing.length === 6, "guitar voicing string count mismatch");
+  assert(voicing.every((note) => note.muted || note.midi >= 40), "invalid voicing MIDI");
+  assert(voicing.some((note) => note.midi === 48), "voicing root missing");
+});
+
 test("app shell files are available from the static server", async () => {
   const response = await fetch("../index.html", { cache: "no-store" });
   assert(response.ok, "index.html is not reachable");
   const html = await response.text();
-  assert(html.includes('src="app.js?v=14"'), "index does not reference the current app version");
+  assert(html.includes('src="app.js?v=16"'), "index does not reference the current app version");
 });
 
 for (const { name, callback } of testCases) {

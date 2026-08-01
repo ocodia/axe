@@ -676,6 +676,19 @@ chord-palette-panel {
   font-weight: 750;
 }
 
+.playback-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.playback-controls button {
+  min-height: 2.25rem;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
 .orientation-toggle {
   display: inline-flex;
   flex: 0 0 auto;
@@ -748,6 +761,23 @@ chord-palette-panel {
   font-weight: 800;
   padding-inline: 0.25rem;
   border-right: 1px solid var(--border);
+}
+
+button.string-name:not(.identifier-headstock) {
+  width: 100%;
+  height: 100%;
+  min-height: 3.05rem;
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+button.string-name:not(.identifier-headstock):hover,
+button.string-name:not(.identifier-headstock):focus-visible {
+  background: var(--surface-2);
+  color: var(--text);
 }
 
 .string-name.open-selected {
